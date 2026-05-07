@@ -48,124 +48,216 @@ class LetterController extends Controller
         $template = Template::with('fields')->findOrFail($templateId);
         return response()->json($template->fields);
     }
-
     public function store(Request $request)
-    {
-        $request->validate([
-            'template_id' => 'required|exists:templates,id',
-            'nomor_surat' => 'required|string|max:100',
-            'tanggal' => 'required|date',
-            'perihal' => 'required|string',
-            'fields.*' => 'nullable|string' // Validasi dinamis bisa diperketat di sini
+{
+    DB::beginTransaction();
+    try {
+        // 1. Simpan Header Surat
+        $letter = Letter::create([
+            'template_id' => $request->template_id,
+            'nomor_surat' => $request->nomor_surat,
+            'tanggal'     => $request->tanggal,
+            'perihal'     => $request->perihal,
+            'jenis'       => 'keluar',
+          'status'      => 'menunggu_verifikasi', // GANTI 'sent' MENJADI 'menunggu_verifikasi'
+            'created_by'  => auth()->id(),
+            'current_level' => 1,
         ]);
 
-        DB::beginTransaction();
-        try {
-            // 1. Simpan Header Surat
-            $letter = Letter::create([
-                'template_id' => $request->template_id,
-                'nomor_surat' => $request->nomor_surat,
-                'tanggal' => $request->tanggal,
-                'perihal' => $request->perihal,
-                'jenis' => Template::find($request->template_id)->jenis,
-                'status' => 'draft', // Awal draft
-                'current_level' => 1, // Level 1 = Staff
-                'created_by' => auth()->id(),
-            ]);
+        // 2. Simpan Nilai-Nilai Field (termasuk ID penerima)
+        $penerima_id = null;
+        if ($request->has('fields')) {
+            foreach ($request->fields as $field_id => $value) {
+                LetterValue::create([
+                    'letter_id' => $letter->id,
+                    'field_id'  => $field_id,
+                    'value'     => $value
+                ]);
 
-            // 2. Simpan Nilai Field Dinamis
-            if ($request->has('fields')) {
-                foreach ($request->fields as $fieldId => $value) {
-                    if (!empty($value)) {
-                        LetterValue::create([
-                            'letter_id' => $letter->id,
-                            'field_id' => $fieldId,
-                            'nilai' => $value
-                        ]);
-                    }
+                // CEK: Jika field ini adalah 'kepada' (penerima), ambil ID-nya
+                // Anda bisa mengecek ID field ini dari database atau berdasarkan nama field
+                $field = \App\Models\TemplateField::find($field_id);
+                if (in_array(strtolower($field->nama_field), ['kepada', 'kepada_nd'])) {
+                    $penerima_id = $value; // Ini berisi ID user yang dipilih di dropdown
                 }
             }
-
-            DB::commit();
-            return redirect()->route('letters.index')->with('success', 'Surat berhasil dibuat.');
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Gagal menyimpan surat: ' . $e->getMessage());
         }
+
+        // 3. LOGIKA KRUSIAL: Buat baris di tabel Disposisi
+        // Inbox HANYA akan tampil jika ada data di sini
+        if ($penerima_id) {
+            \App\Models\Disposisi::create([
+                'letter_id'    => $letter->id,
+                'dari_user_id' => auth()->id(),
+                'ke_user_id'   => $penerima_id,
+                'status'       => 'pending',
+                'tgl_disposisi' => now(),
+                'instruksi'    => 'Harap ditindaklanjuti'
+            ]);
+        }
+
+        DB::commit();
+        return redirect()->route('letters.index')->with('success', 'Surat berhasil dikirim!');
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return back()->with('error', 'Gagal: ' . $e->getMessage());
     }
+}
+
+    // public function store(Request $request)
+    // {
+    //     $request->validate([
+    //         'template_id' => 'required|exists:templates,id',
+    //         'nomor_surat' => 'required|string|max:100',
+    //         'tanggal' => 'required|date',
+    //         'perihal' => 'required|string',
+    //         'fields.*' => 'nullable|string' // Validasi dinamis bisa diperketat di sini
+    //     ]);
+
+    //     DB::beginTransaction();
+    //     try {
+    //         // 1. Simpan Header Surat
+    //         $letter = Letter::create([
+    //             'template_id' => $request->template_id,
+    //             'nomor_surat' => $request->nomor_surat,
+    //             'tanggal' => $request->tanggal,
+    //             'perihal' => $request->perihal,
+    //             'jenis' => Template::find($request->template_id)->jenis,
+    //             'status' => 'draft', // Awal draft
+    //             'current_level' => 1, // Level 1 = Staff
+    //             'created_by' => auth()->id(),
+    //         ]);
+
+    //         // 2. Simpan Nilai Field Dinamis
+    //         if ($request->has('fields')) {
+    //             foreach ($request->fields as $fieldId => $value) {
+    //                 if (!empty($value)) {
+    //                     LetterValue::create([
+    //                         'letter_id' => $letter->id,
+    //                         'field_id' => $fieldId,
+    //                         'nilai' => $value
+    //                     ]);
+    //                 }
+    //             }
+    //         }
+
+    //         DB::commit();
+    //         return redirect()->route('letters.index')->with('success', 'Surat berhasil dibuat.');
+
+    //     } catch (\Exception $e) {
+    //         DB::rollBack();
+    //         return back()->with('error', 'Gagal menyimpan surat: ' . $e->getMessage());
+    //     }
+    // }
 
     // public function index()
     // {
     //     $letters = Letter::with(['template', 'creator'])->latest()->paginate(10);
     //     return view('letters.index', compact('letters'));
     // }
+    // Perbaikan Method index di LetterController.php
 public function index(Request $request)
 {
     $user = auth()->user();
-    $query = Letter::with(['template', 'creator']);
+    
+    // Ambil surat dimana user adalah pembuatnya ATAU penerima disposisi
+    $query = Letter::with(['template', 'creator'])
+        ->where(function($q) use ($user) {
+            $q->where('created_by', $user->id) // Surat yang dibuat sendiri
+              ->orWhereHas('disposisis', function($dq) use ($user) {
+                  $dq->where('ke_user_id', $user->id); // Surat yang ditujukan ke dia
+              });
+        });
 
-    if ($user->level == 'staff') {
-        $query->where('created_by', $user->id);
-    }
-
-    // Filter Logic
+    // Filter pencarian tetap sama
     if ($request->filled('search')) {
         $query->where(function($q) use ($request) {
             $q->where('nomor_surat', 'like', '%'.$request->search.'%')
               ->orWhere('perihal', 'like', '%'.$request->search.'%');
         });
     }
-    if ($request->filled('jenis')) $query->where('jenis', $request->jenis);
-    if ($request->filled('status')) $query->where('status', $request->status);
-    if ($request->filled('from_date')) $query->whereDate('tanggal', '>=', $request->from_date);
 
     $letters = $query->latest()->paginate(10);
 
-    // Hitung statistik global (tidak terpengaruh filter halaman)
+    // Statistik harus mencerminkan data yang bisa dilihat user
     $stats = [
-        'total'     => Letter::when($user->level == 'staff', fn($q) => $q->where('created_by', $user->id))->count(),
-        'waiting'   => Letter::where('status', 'menunggu_verifikasi')->when($user->level == 'staff', fn($q) => $q->where('created_by', $user->id))->count(),
-        'approved'  => Letter::where('status', 'disetujui')->when($user->level == 'staff', fn($q) => $q->where('created_by', $user->id))->count(),
-        'rejected'  => Letter::where('status', 'ditolak')->when($user->level == 'staff', fn($q) => $q->where('created_by', $user->id))->count(),
+        'total'    => (clone $query)->count(),
+        'waiting'  => (clone $query)->where('status', 'menunggu_verifikasi')->count(),
+        'approved' => (clone $query)->where('status', 'disetujui')->count(),
     ];
-
-    // 🔹 AJAX Response
-    if ($request->ajax() || $request->wantsJson()) {
-        return response()->json([
-            'tableHtml' => view('letters._table_rows', compact('letters'))->render(),
-            'pagination' => $letters->withQueryString()->links()->toHtml(),
-            'count' => $letters->count(),
-            'stats' => $stats
-        ]);
-    }
 
     return view('letters.index', compact('letters', 'stats'));
 }
+// public function index(Request $request)
+// {
+//     $user = auth()->user();
+//     $query = Letter::with(['template', 'creator']);
+
+//     if ($user->level == 'staff') {
+//         $query->where('created_by', $user->id);
+//     }
+
+//     // Filter Logic
+//     if ($request->filled('search')) {
+//         $query->where(function($q) use ($request) {
+//             $q->where('nomor_surat', 'like', '%'.$request->search.'%')
+//               ->orWhere('perihal', 'like', '%'.$request->search.'%');
+//         });
+//     }
+//     if ($request->filled('jenis')) $query->where('jenis', $request->jenis);
+//     if ($request->filled('status')) $query->where('status', $request->status);
+//     if ($request->filled('from_date')) $query->whereDate('tanggal', '>=', $request->from_date);
+
+//     $letters = $query->latest()->paginate(10);
+
+//     // Hitung statistik global (tidak terpengaruh filter halaman)
+//     $stats = [
+//         'total'     => Letter::when($user->level == 'staff', fn($q) => $q->where('created_by', $user->id))->count(),
+//         'waiting'   => Letter::where('status', 'menunggu_verifikasi')->when($user->level == 'staff', fn($q) => $q->where('created_by', $user->id))->count(),
+//         'approved'  => Letter::where('status', 'disetujui')->when($user->level == 'staff', fn($q) => $q->where('created_by', $user->id))->count(),
+//         'rejected'  => Letter::where('status', 'ditolak')->when($user->level == 'staff', fn($q) => $q->where('created_by', $user->id))->count(),
+//     ];
+
+//     // 🔹 AJAX Response
+//     if ($request->ajax() || $request->wantsJson()) {
+//         return response()->json([
+//             'tableHtml' => view('letters._table_rows', compact('letters'))->render(),
+//             'pagination' => $letters->withQueryString()->links()->toHtml(),
+//             'count' => $letters->count(),
+//             'stats' => $stats
+//         ]);
+//     }
+
+//     return view('letters.index', compact('letters', 'stats'));
+// }
     
    public function show($id)
 {
     $letter = Letter::with(['template.fields', 'values.field', 'disposisis.dari', 'disposisis.ke', 'creator'])->findOrFail($id);
 
-    $signatureBase64 = null;
-    if ($letter->creator && $letter->creator->signature) {
-        // Gunakan trim untuk menghindari spasi tak terlihat
-        $cleanPath = ltrim(trim($letter->creator->signature), '/');
+    //  $letter = Letter::with(['creator', 'values.field'])->findOrFail($id);
         
-        // Pastikan path menunjuk ke folder yang benar (signatures)
-        // Jika di DB hanya nama file, gunakan: 'app/public/signatures/'
-        $path = storage_path('app/public/' . $cleanPath);
-        $fullPath = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+        $signatureBase64 = null;
         
-        if (file_exists($fullPath)) {
-            $type = pathinfo($fullPath, PATHINFO_EXTENSION);
-            $data = file_get_contents($fullPath);
-            
-            // PERBAIKAN: Harus diawali dengan 'data:image/...'
-            $base64 = base64_encode($data);
-            $cleanBase64 = str_replace(["\r", "\n"], '', $base64);
-            $signatureBase64 = 'data:image/' . $type . ';base64,' . $cleanBase64;
-        }
+        // 2. Proses Pengambilan Gambar Tanda Tangan
+        if ($letter->creator && $letter->creator->signature) {
+            // Ambil nama file (misal: ttd_admin.png)
+            $fileName = trim($letter->creator->signature); 
+
+            // Susun path absolut ke folder storage
+            $path = storage_path('app/public/signatures/' . $fileName);
+
+            // Normalisasi path khusus Windows (mengubah / menjadi \)
+            $fullPath = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+
+            // Cek apakah file fisik benar-benar ada di folder tersebut
+            if (file_exists($fullPath)) {
+                $type = pathinfo($fullPath, PATHINFO_EXTENSION);
+                $data = file_get_contents($fullPath);
+                // Konversi ke Base64 agar DomPDF mudah merender gambar
+                $signatureBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+            }
+        
     }
 
     return view('letters.show', compact('letter', 'signatureBase64'));

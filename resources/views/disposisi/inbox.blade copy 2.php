@@ -1,7 +1,6 @@
 @extends('layouts.app')
 
 @section('content')
-{{-- <div class="container py-4"> --}}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4>📥 Inbox Disposisi</h4>
         <span class="badge bg-success">{{ $disposisi->total() }} Disposisi</span>
@@ -37,26 +36,30 @@
                             @foreach($disposisi as $index => $disp)
                             <tr class="{{ $disp->status == 'pending' ? 'table-warning' : '' }}">
                                 <td>{{ $disposisi->firstItem() + $index }}</td>
-                                <td>{{ $disp->created_at->format('d M Y H:i') }}</td>
+                                
+                                {{-- Perbaikan Baris Tanggal (Safe Formatting) --}}
+                                <td>{{ $disp->created_at instanceof \Carbon\Carbon ? $disp->created_at->format('d M Y H:i') : '-' }}</td>
+                                
                                 <td>
-                                    <strong>{{ $disp->dari->nama_lengkap }}</strong><br>
-                                    <small class="text-muted">{{ $disp->dari->jabatan }}</small>
+                                    <strong>{{ $disp->dari->nama_lengkap ?? 'User Tidak Ditemukan' }}</strong><br>
+                                    <small class="text-muted">{{ $disp->dari->jabatan ?? '-' }}</small>
                                 </td>
                                 <td>
                                     <a href="{{ route('disposisi.show', $disp->id) }}" class="fw-bold">
-                                        {{ $disp->letter->nomor_surat }}
+                                        {{ $disp->letter->nomor_surat ?? 'Nomor Tidak Tersedia' }}
                                     </a>
                                 </td>
-                                <td>{{ Str::limit($disp->letter->perihal, 30) }}</td>
-                                <td><small>{{ Str::limit($disp->instruksi, 40) }}</small></td>
+                                <td>{{ Str::limit($disp->letter->perihal ?? '-', 30) }}</td>
+                                <td><small>{{ Str::limit($disp->instruksi ?? '-', 40) }}</small></td>
                                 <td>
                                     @php
+                                        $prioritas = strtolower($disp->prioritas);
                                         $badge = [
                                             'biasa' => 'secondary',
                                             'penting' => 'warning',
                                             'segera' => 'danger',
                                             'rahasia' => 'dark'
-                                        ][$disp->prioritas];
+                                        ][$prioritas] ?? 'info';
                                     @endphp
                                     <span class="badge bg-{{ $badge }}">
                                         {{ ucfirst($disp->prioritas) }}
@@ -64,34 +67,36 @@
                                 </td>
                                 <td>
                                     @php
+                                        $status = strtolower($disp->status);
                                         $statusBadge = [
                                             'pending' => 'warning',
                                             'dibaca' => 'info',
                                             'diproses' => 'primary',
                                             'diteruskan' => 'success',
                                             'selesai' => 'secondary'
-                                        ][$disp->status];
+                                        ][$status] ?? 'light';
                                     @endphp
                                     <span class="badge bg-{{ $statusBadge }}">
                                         {{ ucfirst($disp->status) }}
                                     </span>
                                 </td>
                                 <td>
-                                    @if($disp->deadline)
-                                        @if($disp->deadline < now() && $disp->status != 'selesai')
+                                    {{-- Perbaikan Baris Deadline (Safe Formatting) --}}
+                                    @if($disp->deadline instanceof \Carbon\Carbon)
+                                        @if($disp->deadline->isPast() && $disp->status != 'selesai')
                                             <span class="text-danger fw-bold">⚠️ {{ $disp->deadline->format('d M Y') }}</span>
                                         @else
                                             <span class="text-muted">{{ $disp->deadline->format('d M Y') }}</span>
                                         @endif
                                     @else
-                                        -
+                                        <span class="text-muted">-</span>
                                     @endif
                                 </td>
                                 <td>
                                     <a href="{{ route('disposisi.show', $disp->id) }}" 
                                        class="btn btn-sm btn-primary" 
                                        title="Lihat & Proses">
-                                        👁️
+                                       👁️
                                     </a>
                                 </td>
                             </tr>
@@ -109,5 +114,4 @@
             📭 Tidak ada disposisi masuk.
         </div>
     @endif
-{{-- </div> --}}
 @endsection

@@ -123,7 +123,8 @@
                         </tr>
                         <tr>
                             <th>Tanggal Dibuat</th>
-                            <td>{{ $letter->created_at->format('d M Y H:i') }} WIB</td>
+                            
+                          <td>{{ $letter->created_at ? $letter->created_at->diffForHumans() : 'Tanggal tidak tersedia' }} WIB</td>
                         </tr>
                     </table>
 
@@ -181,9 +182,10 @@
                                         {{ $disp->dari->nama_lengkap }}
                                     </small>
                                     <small class="text-muted">
-                                        {{ $disp->created_at->diffForHumans() }}
-                                    </small>
+    {{ $disp->created_at ? $disp->created_at->diffForHumans() : 'Baru saja' }}
+</small>
                                 </div>
+                                
                                 <p class="mb-1 small">
                                     <i class="bi bi-arrow-right"></i> 
                                     {{ $disp->ke->nama_lengkap }}
