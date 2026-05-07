@@ -186,7 +186,7 @@
 
         <div class="col-lg-4">
             {{-- Form Tindak Lanjut Utama --}}
-            @if($disposisi->ke_user_id == auth()->id() && in_array($disposisi->status, ['pending', 'dibaca']))
+            @if($disposisi->ke_user_id == auth()->id() && in_array($disposisi->status, ['pending', 'dibaca','diteruskan','diproses']))
             <div class="card shadow-sm border-0 border-top border-primary border-4 mb-4">
                 <div class="card-body">
                     <h6 class="fw-bold mb-3">Tindak Lanjut Disposisi</h6>
@@ -200,7 +200,7 @@
                         </div>
                         
                         <div class="d-grid gap-2">
-                            <button type="submit" name="action" value="approve" class="btn btn-success">
+                            <button type="submit" name="action" value="selesai" class="btn btn-success">
                                 <i class="bi bi-check-lg"></i> Tandai Selesai
                             </button>
                             

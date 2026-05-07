@@ -1,5 +1,6 @@
 @forelse($letters as $index => $letter)
 <tr>
+    
     <td>{{ $letters->firstItem() + $index }}</td>
     <td>
         <a href="{{ route('letters.show', $letter->id) }}" class="fw-bold text-decoration-none">{{ $letter->nomor_surat }}</a>

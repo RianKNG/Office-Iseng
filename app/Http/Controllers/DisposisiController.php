@@ -279,12 +279,25 @@ public function store(Request $request)
 public function process(Request $request, $id)
 {
     $disposisi = \App\Models\Disposisi::findOrFail($id);
-
-    // Ambil nilai action dan ubah ke huruf kecil semua agar tidak sensitif
     $action = strtolower($request->input('action'));
 
-    // Cek apakah aksi mengandung kata setuju/teruskan/approve/forward
-    if (in_array($action, ['approve', 'forward', 'setujui', 'proses', 'tandai selesai'])) {
+    // 1. Jika tombol yang ditekan adalah 'selesai'
+    if ($action === 'selesai') {
+        $disposisi->update([
+            'status' => 'selesai', // Ubah ke 'selesai'
+            'catatan_respon' => $request->catatan_respon // Simpan catatannya juga
+        ]);
+
+        // Opsional: Jika surat selesai, update status surat utamanya juga
+        if ($disposisi->letter) {
+            $disposisi->letter->update(['status' => 'disetujui']);
+        }
+
+        return back()->with('success', 'Surat telah ditandai selesai.');
+    }
+
+    // 2. Jika tombol yang ditekan adalah untuk meneruskan (approve/forward/teruskan)
+    if (in_array($action, ['approve', 'forward', 'teruskan', 'diproses'])) {
         
         $disposisi->update(['status' => 'diproses']);
 
@@ -302,15 +315,14 @@ public function process(Request $request, $id)
                 'current_level' => $currentUserLevel + 1,
                 'status' => 'menunggu_verifikasi'
             ]);
-            return back()->with('success', 'Surat berhasil diproses/diteruskan.');
+            return back()->with('success', 'Surat berhasil diteruskan ke level berikutnya.');
         }
-    } 
+    }
 
-    // Cek apakah aksi mengandung kata tolak/reject
+    // 3. Jika tombol yang ditekan adalah tolak/reject
     if (in_array($action, ['reject', 'tolak', 'kembalikan'])) {
-        
-        // Gunakan status yang PASTI ada di ENUM database Anda (misal: 'selesai')
-        $disposisi->update(['status' => 'selesai']);
+        // Logika kamu sebelumnya sudah benar di sini
+        $disposisi->update(['status' => 'selesai']); 
         
         if ($disposisi->letter) {
             $disposisi->letter->update(['status' => 'ditolak']);
@@ -318,9 +330,7 @@ public function process(Request $request, $id)
         return back()->with('warning', 'Proses dihentikan (Surat Ditolak).');
     }
 
-    // Jika masih gagal, kita tampilkan apa isi action yang sebenarnya masuk
-    return back()->with('error', 'Gagal: Tombol yang Anda tekan mengirimkan perintah "' . $action . '", yang tidak terdaftar di sistem.');
-
+    return back()->with('error', 'Gagal: Perintah "' . $action . '" tidak dikenali.');
 }
     public function show($id)
 {

@@ -95,24 +95,32 @@
                         <tr>
                             <th>Status</th>
                             <td>
-                                @php
-                                    $statusBadge = [
-                                        'draft' => 'secondary',
-                                        'menunggu_verifikasi' => 'warning',
-                                        'disetujui' => 'success',
-                                        'ditolak' => 'danger',
-                                        'arsip' => 'dark'
-                                    ][$letter->status];
-                                    $statusLabel = [
-                                        'draft' => 'Draft',
-                                        'menunggu_verifikasi' => 'Menunggu Verifikasi',
-                                        'disetujui' => 'Disetujui',
-                                        'ditolak' => 'Ditolak',
-                                        'arsip' => 'Arsip'
-                                    ][$letter->status];
-                                @endphp
-                                <span class="badge bg-{{ $statusBadge }}">{{ $statusLabel }}</span>
-                            </td>
+                            @php
+                            $statusBadge = [
+                                'draft'               => 'secondary',
+                                'menunggu_verifikasi' => 'warning',
+                                'disetujui'           => 'success', // Warna tetap hijau
+                                'ditolak'             => 'danger',
+                                'arsip'               => 'dark'
+                            ];
+
+                            $statusLabel = [
+                                'draft'               => 'Draft',
+                                'menunggu_verifikasi' => 'Menunggu Verifikasi',
+                                'disetujui'           => 'Selesai', // Ubah teks di sini dari 'Disetujui' ke 'Selesai'
+                                'ditolak'             => 'Ditolak',
+                                'arsip'               => 'Arsip'
+                            ];
+
+                            // Ambil nilai berdasarkan status, jika tidak ada pakai default 'secondary'
+                            $badgeColor = $statusBadge[$letter->status] ?? 'secondary';
+                            $labelText  = $statusLabel[$letter->status] ?? $letter->status;
+                        @endphp
+
+                        <span class="badge badge-{{ $badgeColor }}">
+                            {{ $labelText }}
+                        </span>
+                                                </td>
                         </tr>
                         <tr>
                             <th>Dibuat Oleh</th>
