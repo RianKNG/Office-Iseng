@@ -70,4 +70,26 @@ class ProfileController extends Controller
 
         return back()->with('success', '✅ Tanda tangan berhasil dihapus');
     }
+    public function uploadPhoto(Request $request)
+{
+    $request->validate([
+        'foto_profile' => 'required|image|mimes:png,jpg,jpeg|max:2048',
+    ]);
+
+    $user = auth()->user();
+
+    // Hapus foto lama jika ada
+    if ($user->foto_profile) {
+        Storage::disk('public')->delete($user->foto_profile);
+    }
+
+    // Upload foto baru
+    $path = $request->file('foto_profile')->store('fotos', 'public');
+
+    $user->update([
+        'foto_profile' => $path
+    ]);
+
+    return back()->with('success', 'Foto profil berhasil diupload!');
+}
 }

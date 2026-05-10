@@ -17,8 +17,8 @@
     <td>{{ $letter->tanggal ? $letter->tanggal->format('d M Y') : '-' }}</td>
     <td>
         @php
-            $statusBadge = ['draft'=>'warning','menunggu_verifikasi'=>'warning','disetujui'=>'success','ditolak'=>'danger','arsip'=>'dark'][$letter->status];
-            $statusLabel = ['draft'=>'Draft','menunggu_verifikasi'=>'Menunggu Verifikasi','disetujui'=>'Disetujui','ditolak'=>'Ditolak','arsip'=>'Arsip'][$letter->status];
+            $statusBadge = ['draft'=>'warning','menunggu_verifikasi'=>'warning','disetujui'=>'success','diproses'=>'success','ditolak'=>'danger','arsip'=>'dark'][$letter->status];
+            $statusLabel = ['draft'=>'Draft','menunggu_verifikasi'=>'Menunggu Verifikasi','disetujui'=>'Disetujui','diproses'=>'Diproses','ditolak'=>'Ditolak','arsip'=>'Arsip'][$letter->status];
         @endphp
         <span class="badge bg-{{ $statusBadge }}">{{ $statusLabel }}</span>
     </td>
@@ -27,9 +27,9 @@
     </td>
     <td class="text-center">
         <div class="btn-group" role="group">
-            <a href="{{ route('letters.show', $letter->id) }}" class="btn btn-sm btn-outline-primary" title="Lihat"><i class="bi bi-eye">Edit</i></a>
+            <a href="{{ route('letters.show', $letter->id) }}" class="btn btn-sm btn-outline-primary" title="Lihat"><i class="bi bi-eye">Lihat</i></a>
             @if($letter->created_by == auth()->id() && $letter->status == 'draft')
-            <a href="{{ route('letters.edit', $letter->id) }}" class="btn btn-sm btn-outline-warning" title="Edit"><i class="bi bi-pencil">Lihat</i></a>
+            <a href="{{ route('letters.edit', $letter->id) }}" class="btn btn-sm btn-outline-warning" title="Edit"><i class="bi bi-pencil">Edit</i></a>
             <button type="button" class="btn btn-sm btn-outline-danger btn-delete-trigger" data-id="{{ $letter->id }}" title="Hapus"><i class="bi bi-trash">Hapus</i></button>
             @endif
         </div>

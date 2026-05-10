@@ -31,7 +31,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [LetterController::class, 'index'])->name('index');
         Route::get('/masuk', [LetterController::class, 'masuk'])->name('masuk');
         Route::get('/create', [LetterController::class, 'create'])->name('create');
-        Route::post('/', [LetterController::class, 'store'])->name('store');
+        Route::post('/store', [LetterController::class, 'store'])->name('store');
+        Route::post('/process', [LetterController::class, 'process'])->name('process');
         Route::get('/{id}', [LetterController::class, 'show'])->name('show');
         Route::get('/{id}/edit', [LetterController::class, 'edit'])->name('edit');
         Route::post('/{id}/update', [LetterController::class, 'update'])->name('update');
@@ -47,16 +48,22 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/', [DisposisiController::class, 'store'])->name('store');
         Route::get('/{id}', [DisposisiController::class, 'show'])->name('show');
         Route::post('/{id}/process', [DisposisiController::class, 'process'])->name('process');
+         // ✅ TAMBAHKAN INI untuk fitur balas
+        Route::post('/{id}/reply', [DisposisiController::class, 'reply'])->name('reply');
     });
 
     // --- Profile Group ---
-    Route::prefix('profile')->name('profile.')->group(function () {
-        Route::get('/', [ProfileController::class, 'edit'])->name('edit');
-        Route::patch('/', [ProfileController::class, 'update'])->name('update');
-        Route::post('/upload-signature', [ProfileController::class, 'uploadSignature'])->name('upload-signature');
-        Route::delete('/remove-signature', [ProfileController::class, 'removeSignature'])->name('remove-signature');
+    Route::middleware('auth')->group(function () {
+    // Route Profile lainnya...
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    
+    // TAMBAHKAN BARIS INI:
+    Route::post('/profile/upload-photo', [ProfileController::class, 'uploadPhoto'])->name('profile.upload-photo');
+    
+    // Opsional: Jika Anda menggunakan fitur signature juga
+    Route::post('/profile/upload-signature', [ProfileController::class, 'uploadSignature'])->name('profile.upload-signature');
     });
-
     // --- AJAX API Group ---
     Route::prefix('api')->group(function () {
         Route::get('/template/{id}/fields', [LetterController::class, 'getFields'])->name('api.template.fields');

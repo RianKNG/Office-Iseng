@@ -183,16 +183,16 @@
                             <th>Status Surat</th>
                             <td>
                                 @php
-                                $statusBadge = [
-                                    'draft' => 'secondary',
-                                    'menunggu_verifikasi' => 'warning',
-                                    'diproses' => 'info',        // ✅ TAMBAHKAN INI
-                                    'disetujui' => 'success',
-                                    'selesai' => 'secondary',
-                                    'ditolak' => 'danger',
-                                    'arsip' => 'dark'
-                                ][$disposisi->letter->status] ?? 'secondary'; // ✅ Fallback
-                            @endphp
+                                    $statusBadge = [
+                                        'draft' => 'secondary',
+                                        'menunggu_verifikasi' => 'warning',  // ✅ Pastikan ada
+                                        'diproses' => 'info',                 // ✅ Tambah ini
+                                        'disetujui' => 'success',
+                                        'selesai' => 'success',               // ✅ Tambah ini
+                                        'ditolak' => 'danger',
+                                        'arsip' => 'dark'
+                                    ][$disposisi->letter->status] ?? 'secondary';
+                                @endphp
                                 <span class="badge bg-{{ $statusBadge }}">
                                     {{ ucfirst(str_replace('_', ' ', $disposisi->letter->status)) }}
                                 </span>
@@ -274,10 +274,7 @@
         <div class="col-lg-4">
             
             <!-- Card: Proses Disposisi -->
-           <!-- Card: Proses Disposisi -->
-@if(in_array($disposisi->status, ['pending', 'dibaca']) 
-    && in_array(auth()->user()->level, ['dirut','kabag']))
-    <div class="card shadow-sm border-primary mb-4">
+            @if(in_array($disposisi->status, ['pending', 'dibaca']))
             <div class="card shadow-sm border-primary mb-4">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0"><i class="bi bi-gear-fill"></i> Proses Disposisi</h5>
@@ -286,51 +283,52 @@
                     
                     <!-- Form Approve -->
                     <form action="{{ route('disposisi.process', $disposisi->id) }}" method="POST" class="mb-3">
-                        @csrf
-                        <input type="hidden" name="action" value="approve">
-                        
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Catatan Tindak Lanjut</label>
-                            <textarea name="catatan_respon" class="form-control @error('catatan_respon') is-invalid @enderror" 
-                                rows="3" placeholder="Tambahkan catatan atau catatan_respon tambahan...">{{ old('catatan_respon') }}</textarea>
-                            @error('catatan_respon')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                            <small class="text-muted">Opsional - akan menggantikan instruksi sebelumnya</small>
-                        </div>
+                    @csrf
+                    <input type="hidden" name="action" value="approve">
+                    <input type="hidden" name="status" value="diteruskan"> <!-- ✅ TAMBAH INI -->
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Catatan Tindak Lanjut</label>
+                        <textarea name="instruksi" class="form-control @error('instruksi') is-invalid @enderror" 
+                            rows="3" placeholder="Tambahkan catatan atau instruksi tambahan...">{{ old('instruksi') }}</textarea>
+                        @error('instruksi')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                        <small class="text-muted">Opsional - akan menggantikan instruksi sebelumnya</small>
+                    </div>
 
-                        <button type="submit" class="btn btn-success w-100 mb-2">
-                            <i class="bi bi-check-circle"></i> Setujui & Teruskan
-                        </button>
-                        <small class="text-muted d-block text-center">
-                            @if(auth()->user()->level == 'dirut')
-                                Persetujuan final (Dirut)
-                            @else
-                                Akan diteruskan ke level berikutnya
-                            @endif
-                        </small>
-                    </form>
+                    <button type="submit" class="btn btn-success w-100 mb-2">
+                        <i class="bi bi-check-circle"></i> Setujui & Teruskan
+                    </button>
+                    <small class="text-muted d-block text-center">
+                        @if(auth()->user()->level == 'dirut')
+                            Persetujuan final (Dirut)
+                        @else
+                            Akan diteruskan ke level berikutnya
+                        @endif
+                    </small>
+                </form>
 
                     <hr class="my-3">
 
                     <!-- Form Reject -->
-                    <form action="{{ route('disposisi.process', $disposisi->id) }}" method="POST" class="mb-3">
-                        
-                        {{-- <form action="{{ route('disposisi.store') }}" method="POST"> --}}
-                        @csrf
-                        <input type="hidden" name="action" value="reject">
-                        
-                        <div class="mb-3">
-                            <label class="form-label fw-bold text-danger">Alasan Penolakan</label>
-                            <textarea name="instruksi" class="form-control" rows="2" 
-                                placeholder="Alasan surat ditolak..." required></textarea>
-                        </div>
+                    {{-- <form action="{{ route('disposisi.process', $disposisi->id) }}" method="POST" class="mb-3"> --}}
+                        <form action="{{ route('disposisi.process', $disposisi->id) }}" method="POST" class="mb-3">
+    @csrf
+    <input type="hidden" name="action" value="reject">
+    <input type="hidden" name="status" value="ditolak">
+    
+    <div class="mb-3">
+        <label class="form-label fw-bold text-danger">Alasan Penolakan</label>
+        <textarea name="instruksi" class="form-control" rows="2" 
+            placeholder="Alasan surat ditolak..." required></textarea>
+    </div>
 
-                        <button type="submit" class="btn btn-danger w-100" 
-                            onclick="return confirm('⚠️ Yakin ingin menolak disposisi ini?\n\nSurat akan ditandai sebagai DITOLAK.')">
-                            <i class="bi bi-x-circle"></i> Tolak Surat
-                        </button>
-                    </form>
+    <button type="submit" class="btn btn-danger w-100" 
+        onclick="return confirm('⚠️ Yakin ingin menolak disposisi ini?\n\nSurat akan ditandai sebagai DITOLAK.')">
+        <i class="bi bi-x-circle"></i> Tolak Surat
+    </button>
+</form>
 
                     <hr class="my-3">
 
@@ -353,16 +351,27 @@
                 </div>
                 <div class="card-body text-center py-4">
                     <div class="mb-3">
-                        @if($disposisi->status == 'diproses')
-                            <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
-                            <h5 class="mt-3 text-success">Sudah Diproses</h5>
-                        @elseif($disposisi->status == 'diteruskan')
-                            <i class="bi bi-share-fill text-info" style="font-size: 4rem;"></i>
-                            <h5 class="mt-3 text-info">Diteruskan</h5>
-                        @elseif($disposisi->status == 'selesai')
-                            <i class="bi bi-archive-fill text-secondary" style="font-size: 4rem;"></i>
-                            <h5 class="mt-3 text-secondary">Selesai</h5>
-                        @endif
+                       @php $stat = strtolower(trim($disposisi->status)); @endphp
+                        <div class="mb-3">
+                            @php $stat = strtolower(trim($disposisi->status)); @endphp
+<div class="mb-3">
+    @if($stat == 'diproses')
+        <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+        <h5 class="mt-3 text-success">Sudah Diproses</h5>
+    @elseif($stat == 'diteruskan')
+        <i class="bi bi-share-fill text-info" style="font-size: 4rem;"></i>
+        <h5 class="mt-3 text-info">Diteruskan</h5>
+    @elseif($stat == 'selesai' || $stat == 'disetujui')
+        <i class="bi bi-archive-fill text-secondary" style="font-size: 4rem;"></i>
+        <h5 class="mt-3 text-secondary">Selesai</h5>
+    @elseif($stat == 'ditolak')
+        <i class="bi bi-x-circle-fill text-danger" style="font-size: 4rem;"></i>
+        <h5 class="mt-3 text-danger">Ditolak</h5>
+    @else
+        <i class="bi bi-hourglass-split text-warning" style="font-size: 4rem;"></i>
+        <h5 class="mt-3 text-warning">Menunggu</h5>
+    @endif
+</div>
                     </div>
                     <p class="text-muted mb-0">Disposisi ini sudah diproses pada<br>
                     <strong>{{ $disposisi->updated_at->format('d M Y H:i') }}</strong></p>
@@ -376,36 +385,28 @@
                     <h6 class="mb-0"><i class="bi bi-chat-left-text"></i> Balas Disposisi</h6>
                 </div>
                 <div class="card-body">
-                    <!-- Card: Reply Disposisi -->
-<div class="card shadow-sm">
-    <div class="card-header bg-light">
-        <h6 class="mb-0"> <i class="bi bi-chat-left-text"></i> Balas Disposisi </h6>
-    </div>
-    <div class="card-body">
-        <form action="{{ route('disposisi.reply', $disposisi->id) }}" method="POST">
-            @csrf
-            
-            <div class="mb-3">
-                <label class="form-label small">Balasan untuk {{ $disposisi->dari->nama_lengkap }}</label>
-                <textarea name="catatan_balasan" class="form-control" rows="3" 
-                    placeholder="Tulis balasan..." required></textarea>
-            </div>
+                    <form action="{{ route('disposisi.show', $disposisi->id) }}" method="POST">
+                        @csrf
+                        
+                        <div class="mb-3">
+                            <label class="form-label small">Balasan untuk {{ $disposisi->dari->nama_lengkap }}</label>
+                            <textarea name="instruksi" class="form-control" rows="3" 
+                                placeholder="Tulis balasan..." required></textarea>
+                        </div>
 
-            <div class="mb-3">
-                <label class="form-label small">Prioritas</label>
-                <select name="prioritas" class="form-select">
-                    <option value="biasa">Biasa</option>
-                    <option value="penting">Penting</option>
-                    <option value="segera">Segera</option>
-                </select>
-            </div>
+                        <div class="mb-3">
+                            <label class="form-label small">Prioritas</label>
+                            <select name="prioritas" class="form-select">
+                                <option value="biasa">Biasa</option>
+                                <option value="penting">Penting</option>
+                                <option value="segera">Segera</option>
+                            </select>
+                        </div>
 
-            <button type="submit" class="btn btn-sm btn-primary w-100">
-                <i class="bi bi-send"></i> Kirim Balasan
-            </button>
-        </form>
-    </div>
-</div>
+                        <button type="submit" class="btn btn-sm btn-primary w-100">
+                            <i class="bi bi-send"></i> Kirim Balasan
+                        </button>
+                    </form>
                 </div>
             </div>
 
@@ -416,64 +417,46 @@
 <!-- Modal Forward -->
 <div class="modal fade" id="modalForward" tabindex="-1">
     <div class="modal-dialog">
-        <form action="{{ route('disposisi.process', $disposisi->id) }}" method="POST">
-            @csrf
-            <input type="hidden" name="action" value="forward">
-            
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title"><i class="bi bi-share"></i> Teruskan Disposisi</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-info">
-                        <small>Teruskan disposisi ini ke user lain untuk ditindaklanjuti</small>
-                    </div>
+        <form action="{{ route('disposisi.process', $disposisi->id) }}" method="POST" class="mb-3">
+    @csrf
+    <input type="hidden" name="action" value="approve">
+    <input type="hidden" name="status" value="diteruskan">
+    
+    <div class="mb-3">
+        <label class="form-label fw-bold">Catatan Tindak Lanjut</label>
+        <textarea name="instruksi" class="form-control @error('instruksi') is-invalid @enderror" 
+            rows="3" placeholder="Tambahkan catatan atau instruksi tambahan...">{{ old('instruksi') }}</textarea>
+        @error('instruksi')
+            <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
+        <small class="text-muted">Opsional - akan menggantikan instruksi sebelumnya</small>
+    </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Teruskan Kepada</label>
-                        <select name="ke_user_id" class="form-select" required>
-                            <option value="">-- Pilih User --</option>
-                            @foreach(\App\Models\User::where('status','aktif')
-                                ->where('id', '!=', auth()->id())
-                                ->orderBy('nama_lengkap')
-                                ->get() as $user)
-                                <option value="{{ $user->id }}">
-                                    {{ $user->nama_lengkap }} - {{ $user->jabatan }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Instruksi Tambahan</label>
-                        <textarea name="instruksi" class="form-control" rows="3" 
-                            placeholder="Instruksi untuk user tujuan..." required></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-send"></i> Teruskan
-                    </button>
-                </div>
-            </div>
-        </form>
+    <button type="submit" class="btn btn-success w-100 mb-2">
+        <i class="bi bi-check-circle"></i> Setujui & Teruskan
+    </button>
+    <small class="text-muted d-block text-center">
+        @if(auth()->user()->level == 'dirut')
+            Persetujuan final (Dirut)
+        @else
+            Akan diteruskan ke level berikutnya
+        @endif
+    </small>
+</form>
     </div>
 </div>
 @endsection
 
 @push('scripts')
 <script>
-// Auto-hide alert setelah 5 detik
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(function() {
-        const alerts = document.querySelectorAll('.alert');
-        alerts.forEach(function(alert) {
-            const bsAlert = new bootstrap.Alert(alert);
-            bsAlert.close();
-        });
-    }, 5000);
-});
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto hide alert
+        setTimeout(() => {
+            document.querySelectorAll('.alert-dismissible').forEach(el => {
+                const alert = new bootstrap.Alert(el);
+                alert.close();
+            });
+        }, 5000);
+    });
 </script>
 @endpush

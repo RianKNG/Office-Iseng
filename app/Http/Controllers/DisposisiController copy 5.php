@@ -177,19 +177,27 @@ class DisposisiController extends Controller
 /**
  * Process disposition (approve/forward/reject)
  */
-/**
- * Process disposition (approve/forward/reject)
- */
-/**
- * Process disposition (approve/forward/reject)
- */
 public function process(Request $request, $id)
 {
-     // ✅ Hanya dirut dan kabag yang boleh disposisi
-    if (!in_array(auth()->user()->level, ['dirut', 'kabag'])) {
-        abort(403, 'Anda tidak berhak melakukan disposisi');
-    }
-    // Validasi lebih fleksibel - status tidak wajib
+    // ========== DEBUG MODE START ==========
+    $debug = [];
+    $debug['timestamp'] = now()->toDateTimeString();
+    $debug['url'] = $request->fullUrl();
+    $debug['method'] = $request->method();
+    $debug['disposisi_id'] = $id;
+    $debug['user_id'] = auth()->id();
+    $debug['request_all'] = $request->all();
+    $debug['has_instruksi'] = $request->has('instruksi') ? 'YES' : 'NO';
+    $debug['instruksi_value'] = $request->instruksi ?? 'NULL';
+    $debug['instruksi_length'] = strlen($request->instruksi ?? '');
+    
+    echo "<div style='background:#f0f0f0; padding:20px; font-family:monospace; margin:20px; border:2px solid #333;'>";
+    echo "<h2 style='color:#d9534f; margin:0 0 20px 0;'>🔍 DEBUG MODE - CATATAN TINDAK LANJUT</h2>";
+    echo "<h3 style='color:#0275d8; border-bottom:1px solid #ccc; padding-bottom:5px;'>📥 REQUEST DATA</h3>";
+    echo "<pre>" . print_r($debug, true) . "</pre>";
+    // ========== DEBUG MODE END ==========
+
+    // Validasi lebih fleksibel
     $request->validate([
         'status'         => 'nullable|in:pending,diproses,selesai,ditolak,diteruskan,dibaca',
         'action'         => 'nullable|in:approve,forward,reject',
@@ -201,48 +209,164 @@ public function process(Request $request, $id)
 
     $disposisi = Disposisi::with('letter')->findOrFail($id);
     
+    $debug['disposisi_before'] = [
+        'id' => $disposisi->id,
+        'status' => $disposisi->status,
+        'instruksi_before' => $disposisi->instruksi,
+        'letter_id' => $disposisi->letter_id,
+    ];
+    
+    echo "<h3 style='color:#0275d8; border-bottom:1px solid #ccc; padding-bottom:5px;'>📮 DISPOSISI BEFORE</h3>";
+    echo "<pre>" . print_r($debug['disposisi_before'], true) . "</pre>";
+
     // Tentukan status dari action jika tidak dikirim
     $targetStatus = $request->status;
     
     if (!$targetStatus && $request->has('action')) {
-    $action = $request->action;
-    
-    if ($action === 'approve' || $action === 'forward') {
-    $targetStatus = 'diteruskan';
-} elseif ($action === 'reject') {
-    // Karena 'ditolak' tidak ada di database, gunakan yang ada
-    $targetStatus = 'selesai'; 
-} else {
-    $targetStatus = 'diproses';
-}
-}
+        $action = $request->action;
+        if ($action === 'approve' || $action === 'forward') {
+            $targetStatus = 'diteruskan';
+        } elseif ($action === 'reject') {
+            $targetStatus = 'ditolak';
+        } else {
+            $targetStatus = 'diproses';
+        }
+    }
 
-// Pastikan model mengupdate dengan string yang benar
-$disposisi->update([
-    'status' => $targetStatus,
-    'instruksi' => $request->catatan_balasan // pastikan variabel ini ada
-]);
-// dd($disposisi);
-    // DB::beginTransaction();
+    DB::beginTransaction();
     try {
-        // 1. Update disposisi saat ini - SIMPAN INSTRUKSI (ALASAN PENOLAKAN)
-        $disposisi->update([
-            'status'         => $targetStatus,
-            'instruksi'      => $request->filled('instruksi') ? $request->instruksi : $disposisi->instruksi,
+        // Data yang akan diupdate
+        $updateData = [
+            'status' => $targetStatus,
             'catatan_respon' => $request->catatan_respon ?? $disposisi->catatan_respon,
-            'updated_at'     => now(),
-        ]);
-// dd($disposisi);
-        // 2. Sync status surat
+            'updated_at' => now(),
+        ];
+        
+        // ✅ PENTING: Simpan catatan tindak lanjut ke field 'instruksi'
+        if ($request->filled('instruksi')) {
+            $updateData['instruksi'] = $request->instruksi;
+            $debug['will_update_instruksi'] = true;
+            $debug['new_instruksi_value'] = $request->instruksi;
+        } else {
+            $debug['will_update_instruksi'] = false;
+            $debug['keep_old_instruksi'] = $disposisi->instruksi;
+        }
+        
+        echo "<h3 style='color:#0275d8; border-bottom:1px solid #ccc; padding-bottom:5px;'>✏️ DATA YANG AKAN DIUPDATE</h3>";
+        echo "<pre>" . print_r($updateData, true) . "</pre>";
+
+        // 1. Update disposisi saat ini
+        $disposisi->update($updateData);
+        
+        $debug['disposisi_updated'] = true;
+        $debug['update_data'] = $updateData;
+
+        // 2. Jika forward ke user lain
+        if ($targetStatus !== 'ditolak' && $request->filled('ke_user_id')) {
+            echo "<h3 style='color:#0275d8; border-bottom:1px solid #ccc; padding-bottom:5px;'>➡️ MEMBUAT DISPOSISI BARU</h3>";
+            
+            $newDisposisiData = [
+                'letter_id'      => $disposisi->letter_id,
+                'parent_id'      => $disposisi->id,
+                'dari_user_id'   => auth()->id(),
+                'ke_user_id'     => $request->ke_user_id,
+                'instruksi'      => $request->instruksi ?? 'Mohon tindaklanjuti',
+                'prioritas'      => $request->prioritas ?? 'biasa',
+                'status'         => 'pending',
+                'deadline'       => $request->deadline ?? now()->addDays(3),
+            ];
+            
+            echo "<pre>" . print_r($newDisposisiData, true) . "</pre>";
+            
+            $newDisposisi = Disposisi::create($newDisposisiData);
+            
+            $debug['new_disposisi_created'] = true;
+            $debug['new_disposisi_id'] = $newDisposisi->id;
+            $debug['new_disposisi_instruksi'] = $newDisposisi->instruksi;
+            $debug['forwarded_to_user_id'] = $request->ke_user_id;
+            
+            echo "<p style='background:#dff0d8; padding:10px; border-left:4px solid #3c763d;'>";
+            echo "✅ <strong>Disposisi Baru Dibuat:</strong><br>";
+            echo "ID: {$newDisposisi->id}<br>";
+            echo "Kepada User ID: {$request->ke_user_id}<br>";
+            echo "Instruksi: <strong>{$newDisposisi->instruksi}</strong>";
+            echo "</p>";
+        } else {
+            $debug['new_disposisi_created'] = false;
+        }
+
+        // 3. Sync status surat
+        echo "<h3 style='color:#0275d8; border-bottom:1px solid #ccc; padding-bottom:5px;'>🔄 SYNCING LETTER STATUS</h3>";
         $this->syncLetterStatus($disposisi->letter_id);
+        
+        // Reload untuk debug
+        $disposisi->refresh();
+        $freshLetter = Letter::find($disposisi->letter_id);
+        
+        $debug['disposisi_after'] = [
+            'id' => $disposisi->id,
+            'status' => $disposisi->status,
+            'instruksi_after' => $disposisi->instruksi,
+        ];
+        
+        $debug['letter_after'] = $freshLetter->status;
+        $debug['final_letter_status'] = $freshLetter ? ($freshLetter->status ?? 'NOT_FOUND') : 'NOT_FOUND';
 
         DB::commit();
-        return redirect()->back()->with('success', '✅ Disposisi berhasil diproses');
+        
+        echo "<h3 style='color:#0275d8; border-bottom:1px solid #ccc; padding-bottom:5px;'>✅ HASIL AKHIR</h3>";
+        echo "<div style='background:#dff0d8; padding:15px; border:2px solid #3c763d;'>";
+        echo "<p><strong>Disposisi #{$disposisi->id}:</strong></p>";
+        echo "<ul>";
+        echo "<li>Status: {$debug['disposisi_after']['status']}</li>";
+        echo "<li>Instruksi: <strong>{$debug['disposisi_after']['instruksi_after']}</strong></li>";
+        echo "</ul>";
+        
+        if ($debug['new_disposisi_created']) {
+            echo "<p><strong>Disposisi Baru #{$debug['new_disposisi_id']}:</strong></p>";
+            echo "<ul>";
+            echo "<li>Diteruskan ke User ID: {$debug['forwarded_to_user_id']}</li>";
+            echo "<li>Instruksi: <strong>{$debug['new_disposisi_instruksi']}</strong></li>";
+            echo "</ul>";
+        }
+        
+        echo "<p><strong>Letter Status:</strong> {$debug['final_letter_status']}</p>";
+        echo "<p><strong>Transaction:</strong> <span style='color:green;'>COMMITTED</span></p>";
+        echo "</div>";
+        
+        echo "<h3 style='color:#0275d8; border-bottom:1px solid #ccc; padding-bottom:5px;'>📊 KESIMPULAN</h3>";
+        echo "<div style='background:#fff3cd; padding:15px; border-left:4px solid #ffc107;'>";
+        echo "<p><strong>Catatan Tindak Lanjut tersimpan di:</strong></p>";
+        echo "<ol>";
+        echo "<li>✅ Field <code>instruksi</code> pada disposisi saat ini (ID: {$disposisi->id})</li>";
+        if ($debug['new_disposisi_created']) {
+            echo "<li>✅ Field <code>instruksi</code> pada disposisi baru (ID: {$debug['new_disposisi_id']})</li>";
+        }
+        echo "</ol>";
+        echo "<p><strong>Nilai yang tersimpan:</strong> <em>\"{$debug['disposisi_after']['instruksi_after']}\"</em></p>";
+        echo "</div>";
+        
+        echo "<div style='margin-top:20px; padding:15px; background:#fff; border:2px solid #333;'>";
+        echo "<a href='" . route('disposisi.inbox') . "' style='display:inline-block; padding:10px 20px; background:#0275d8; color:white; text-decoration:none; border-radius:4px;'>";
+        echo "← Kembali ke Inbox";
+        echo "</a>";
+        echo "</div>";
+        
+        echo "</div>";
+        exit; // STOP HERE
 
     } catch (\Exception $e) {
         DB::rollBack();
-        Log::error('Process Error: ' . $e->getMessage());
-        return redirect()->back()->with('error', '❌ Gagal: ' . $e->getMessage());
+        $debug['error'] = $e->getMessage();
+        
+        echo "<h3 style='color:#d9534f; border-bottom:1px solid #ccc; padding-bottom:5px;'>❌ ERROR OCCURRED</h3>";
+        echo "<div style='background:#f2dede; padding:15px; border:2px solid #d9534f;'>";
+        echo "<p><strong>Error Message:</strong> " . $e->getMessage() . "</p>";
+        echo "<p><strong>File:</strong> " . $e->getFile() . "</p>";
+        echo "<p><strong>Line:</strong> " . $e->getLine() . "</p>";
+        echo "</div>";
+        echo "</div>";
+        exit;
     }
 }
 /**
@@ -297,48 +421,7 @@ private function syncLetterStatus($letterId)
         }
     }
 }
-/**
- * Handle reply/balasan disposisi
- */
-/**
- * Handle reply/balasan disposisi - DEBUG MODE
- */
-public function reply(Request $request, $id)
-{
-$request->validate([
-    'catatan_balasan' => 'required|string',
-    'prioritas'       => 'nullable|in:biasa,penting,segera',
-]);
 
-$disposisi = Disposisi::findOrFail($id);
-
-DB::beginTransaction();
-try {
-    // Buat disposisi baru sebagai balasan (kirim balik ke pengirim awal)
-    $newDisposisiData = [
-        'letter_id'    => $disposisi->letter_id,
-        'parent_id'    => $disposisi->id,
-        'dari_user_id' => auth()->id(),
-        'ke_user_id'   => $disposisi->dari_user_id, // Kirim balik ke pengirim
-        'instruksi'    => $request->catatan_balasan,
-        'prioritas'    => $request->prioritas ?? 'biasa',
-        'status'       => 'pending',
-        'deadline'     => now()->addDays(3),
-        'balasan'      => true, // Tandai sebagai balasan
-    ];
-
-    Disposisi::create($newDisposisiData);
-
-    DB::commit();
-
-    return redirect()->back()->with('success', '✅ Balasan berhasil dikirim');
-
-} catch (\Exception $e) {
-    DB::rollBack();
-
-    return redirect()->back()->with('error', '❌ Terjadi kesalahan saat mengirim balasan.');
-}
-}
     /**
      * Process disposition (approve/forward/reject)
      */

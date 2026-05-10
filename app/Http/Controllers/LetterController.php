@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Disposisi;
 use App\Models\Letter;
 use App\Models\LetterValue;
 use App\Models\Template;
@@ -9,6 +10,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 // Gunakan penulisan ini (perhatikan huruf besar/kecil)
 
 
@@ -42,6 +44,97 @@ class LetterController extends Controller
     return view('letters.create', compact('templates', 'users'));
 }
 
+    public function store(Request $request)  // ✅ HANYA 1 PARAMETER
+    {
+        // Debug log (opsional, hapus setelah berhasil)
+        Log::info('=== STORE LETTER ===', [
+            'user_id' => auth()->id(),
+            'request' => $request->all()
+        ]);
+
+        // Validasi
+        $request->validate([
+            'template_id' => 'required|exists:templates,id',
+            'nomor_surat' => 'required|string|max:100',
+            'tanggal'     => 'required|date',
+            'perihal'     => 'required|string|max:255',
+            'ke_user_id'  => 'required|exists:users,id',
+            'fields.*'    => 'nullable|string|max:1000',
+            'file_path'   => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240'
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $template = Template::findOrFail($request->template_id);
+            
+            // Handle file upload
+            $filePath = null;
+            if ($request->hasFile('file_path')) {
+                $filePath = $request->file('file_path')->store('letters', 'public');
+            }
+
+            // 1. Simpan Header Surat
+            $letter = Letter::create([
+                'template_id'   => $request->template_id,
+                'nomor_surat'   => $request->nomor_surat,
+                'tanggal'       => $request->tanggal,
+                'perihal'       => $request->perihal,
+                'jenis'         => $template->jenis,
+                'status'        => 'menunggu_verifikasi',
+                'current_level' => 1,
+                'created_by'    => auth()->id(),
+                'file_path'     => $filePath,
+            ]);
+
+            // 2. Simpan Dynamic Fields
+            if ($request->has('fields') && is_array($request->fields)) {
+                foreach ($request->fields as $fieldId => $value) {
+                    if ($value !== null && $value !== '') {
+                        LetterValue::create([
+                            'letter_id' => $letter->id,
+                            'field_id'  => $fieldId,
+                            'nilai'     => is_string($value) ? trim($value) : $value
+                        ]);
+                    }
+                }
+            }
+
+            // 3. Buat Disposisi Awal
+            Disposisi::create([
+                'letter_id'      => $letter->id,
+                'dari_user_id'   => auth()->id(),
+                'ke_user_id'     => $request->ke_user_id,
+                'instruksi'      => 'Surat baru - mohon ditindaklanjuti',
+                'prioritas'      => 'biasa',
+                'status'         => 'pending',
+                'deadline'       => now()->addDays(3),
+            ]);
+
+            DB::commit();
+            
+            Log::info('Letter created successfully', ['letter_id' => $letter->id]);
+            
+            return redirect()->route('letters.index')
+                ->with('success', '✅ Surat berhasil dibuat dan diteruskan.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            Log::error('Store Letter Failed: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->except(['password'])
+            ]);
+            
+            return back()
+                ->withInput()
+                ->with('error', '❌ Gagal: ' . $e->getMessage());
+        }
+    }
+
+
+
+
+
     // API Endpoint untuk AJAX
     public function getFields($templateId)
     {
@@ -49,57 +142,6 @@ class LetterController extends Controller
         return response()->json($template->fields);
     }
 
-    public function store(Request $request)
-    {
-        $request->validate([
-            'template_id' => 'required|exists:templates,id',
-            'nomor_surat' => 'required|string|max:100',
-            'tanggal' => 'required|date',
-            'perihal' => 'required|string',
-            'fields.*' => 'nullable|string' // Validasi dinamis bisa diperketat di sini
-        ]);
-
-        DB::beginTransaction();
-        try {
-            // 1. Simpan Header Surat
-            $letter = Letter::create([
-                'template_id' => $request->template_id,
-                'nomor_surat' => $request->nomor_surat,
-                'tanggal' => $request->tanggal,
-                'perihal' => $request->perihal,
-                'jenis' => Template::find($request->template_id)->jenis,
-                'status' => 'draft', // Awal draft
-                'current_level' => 1, // Level 1 = Staff
-                'created_by' => auth()->id(),
-            ]);
-
-            // 2. Simpan Nilai Field Dinamis
-            if ($request->has('fields')) {
-                foreach ($request->fields as $fieldId => $value) {
-                    if (!empty($value)) {
-                        LetterValue::create([
-                            'letter_id' => $letter->id,
-                            'field_id' => $fieldId,
-                            'nilai' => $value
-                        ]);
-                    }
-                }
-            }
-
-            DB::commit();
-            return redirect()->route('letters.index')->with('success', 'Surat berhasil dibuat.');
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Gagal menyimpan surat: ' . $e->getMessage());
-        }
-    }
-
-    // public function index()
-    // {
-    //     $letters = Letter::with(['template', 'creator'])->latest()->paginate(10);
-    //     return view('letters.index', compact('letters'));
-    // }
 public function index(Request $request)
 {
     $user = auth()->user();
@@ -172,33 +214,46 @@ public function index(Request $request)
 
 }
     public function generateNomorSurat(Request $request)
+
 {
-    $kode = $request->input('kode'); // SM-UMUM, SK-RESMI, ND-INT
+    $kode = $request->input('kode');
+    if (!$kode) {
+        return response()->json(['error' => 'Kode template tidak ditemukan'], 400);
+    }
+
     $bulan = date('n');
     $tahun = date('Y');
     
-    // Hitung nomor urut terakhir
+    // 1. Gunakan whereHas untuk relasi yang lebih bersih
+    // 2. Hapus whereMonth jika ingin nomor urut berlanjut sepanjang tahun
     $lastLetter = Letter::whereYear('created_at', $tahun)
-        ->whereMonth('created_at', $bulan)
-        ->where('template_id', function($query) use ($kode) {
-            $query->select('id')->from('templates')->where('kode_template', $kode);
+        ->whereHas('template', function($query) use ($kode) {
+            $query->where('kode_template', $kode);
         })
-        ->orderBy('nomor_surat', 'desc')
+        ->orderBy('id', 'desc') // Menggunakan ID jauh lebih aman daripada String nomor_surat
         ->first();
     
     $nomorUrut = 1;
-    if ($lastLetter) {
-        // Extract nomor dari "001/SM-UMUM/V/2026"
-        preg_match('/^(\d+)\//', $lastLetter->nomor_surat, $matches);
-        $nomorUrut = isset($matches[1]) ? intval($matches[1]) + 1 : 1;
+
+    if ($lastLetter && !empty($lastLetter->nomor_surat)) {
+        // Menggunakan explode lebih cepat daripada preg_match untuk format sederhana "001/..."
+        $parts = explode('/', $lastLetter->nomor_surat);
+        if (count($parts) > 0 && is_numeric($parts[0])) {
+            $nomorUrut = intval($parts[0]) + 1;
+        }
     }
     
     $bulanRomawi = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'][$bulan - 1];
+    
+    // Pastikan $kode yang dikembalikan adalah string bersih
     $nomorSurat = sprintf('%03d', $nomorUrut) . '/' . $kode . '/' . $bulanRomawi . '/' . $tahun;
     
-    return response()->json(['nomor' => $nomorSurat]);
-
+    return response()->json([
+        'success' => true,
+        'nomor' => $nomorSurat
+    ]);
 }
+
 // Di LetterController.php - TAMBAHKAN method ini
 public function masuk(Request $request)
 {
