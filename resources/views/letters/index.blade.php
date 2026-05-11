@@ -1,21 +1,34 @@
 @extends('layouts.app')
 
 @section('content')
-{{-- <div class="container py-4"> --}}
+<div class="container-fluid py-4">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="mb-1"><i class="bi bi-file-earmark-text text-primary"></i> Daftsssar Surddddat</h4>
-            <nav aria-label="breadcrumb"><ol class="breadcrumb mb-0"><li class="breadcrumb-item active">Surat</li></ol></nav>
+            <h4 class="mb-1"><i class="bi bi-file-earmark-text text-primary"></i> Daftar Surat</h4>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item active">Surat</li>
+                </ol>
+            </nav>
         </div>
-        <a href="{{ route('letters.create') }}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Buat Surat Baru</a>
+        <a href="{{ route('letters.create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Buat Surat Baru
+        </a>
     </div>
 
+    <!-- Alert Messages -->
     @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show"><i class="bi bi-check-circle me-2"></i>{{ session('success') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+        <div class="alert alert-success alert-dismissible fade show">
+            <i class="bi bi-check-circle me-2"></i>{{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
     @endif
     @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show"><i class="bi bi-exclamation-circle me-2"></i>{{ session('error') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+        <div class="alert alert-danger alert-dismissible fade show">
+            <i class="bi bi-exclamation-circle me-2"></i>{{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
     @endif
 
     <!-- 🔍 Live Filter (No Form Submit) -->
@@ -24,7 +37,8 @@
             <div class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">Cari Surat</label>
-                    <input type="text" id="searchInput" class="form-control" value="{{ request('search') }}" placeholder="Nomor atau perihal...">
+                    <input type="text" id="searchInput" class="form-control" 
+                           value="{{ request('search') }}" placeholder="Nomor atau perihal...">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Jenis</label>
@@ -41,8 +55,9 @@
                         <option value="">Semua</option>
                         <option value="draft" {{ request('status')=='draft'?'selected':'' }}>Draft</option>
                         <option value="menunggu_verifikasi" {{ request('status')=='menunggu_verifikasi'?'selected':'' }}>Menunggu Verifikasi</option>
-                        <option value="disetujui" {{ request('status')=='disetujui'?'selected':'' }}>Disetujui</option>
+                        <option value="disetujui" {{ request('status')=='disetujui'?'selected':'' }}>Selesai</option>
                         <option value="ditolak" {{ request('status')=='ditolak'?'selected':'' }}>Ditolak</option>
+                        <option value="diproses" {{ request('status')=='diproses'?'selected':'' }}>Diproses</option>
                         <option value="arsip" {{ request('status')=='arsip'?'selected':'' }}>Arsip</option>
                     </select>
                 </div>
@@ -59,12 +74,15 @@
         </div>
     </div>
 
-    <!--  Statistics Cards -->
+    <!-- 📊 Statistics Cards -->
     <div class="row g-3 mb-4" id="statsContainer">
         <div class="col-md-3">
             <div class="card border-start border-4 border-primary h-100">
                 <div class="card-body d-flex justify-content-between align-items-center">
-                    <div><h6 class="text-muted mb-1">Total Surat</h6><h3 class="mb-0" id="statTotal">{{ $letters->total() }}</h3></div>
+                    <div>
+                        <h6 class="text-muted mb-1">Total Surat</h6>
+                        <h3 class="mb-0" id="statTotal">{{ $stats['total'] ?? 0 }}</h3>
+                    </div>
                     <i class="bi bi-files text-primary" style="font-size: 2.5rem; opacity: 0.3;"></i>
                 </div>
             </div>
@@ -72,9 +90,10 @@
         <div class="col-md-3">
             <div class="card border-start border-4 border-warning h-100">
                 <div class="card-body d-flex justify-content-between align-items-center">
-                    <div><h6 class="text-muted mb-1">Menunggu Verifikasi</h6><h3 class="mb-0" id="statWaiting">
-                        @php $waiting = \App\Models\Letter::where('status', 'menunggu_verifikasi')->count(); @endphp {{ $waiting }}
-                    </h3></div>
+                    <div>
+                        <h6 class="text-muted mb-1">Menunggu Verifikasi</h6>
+                        <h3 class="mb-0" id="statWaiting">{{ $stats['waiting'] ?? 0 }}</h3>
+                    </div>
                     <i class="bi bi-clock-history text-warning" style="font-size: 2.5rem; opacity: 0.3;"></i>
                 </div>
             </div>
@@ -82,9 +101,10 @@
         <div class="col-md-3">
             <div class="card border-start border-4 border-success h-100">
                 <div class="card-body d-flex justify-content-between align-items-center">
-                    <div><h6 class="text-muted mb-1">Disetujui</h6><h3 class="mb-0" id="statApproved">
-                        @php $approved = \App\Models\Letter::where('status', 'disetujui')->count(); @endphp {{ $approved }}
-                    </h3></div>
+                    <div>
+                        <h6 class="text-muted mb-1">Selesai</h6>
+                        <h3 class="mb-0" id="statApproved">{{ $stats['approved'] ?? 0 }}</h3>
+                    </div>
                     <i class="bi bi-check-circle text-success" style="font-size: 2.5rem; opacity: 0.3;"></i>
                 </div>
             </div>
@@ -92,9 +112,10 @@
         <div class="col-md-3">
             <div class="card border-start border-4 border-danger h-100">
                 <div class="card-body d-flex justify-content-between align-items-center">
-                    <div><h6 class="text-muted mb-1">Ditolak</h6><h3 class="mb-0" id="statRejected">
-                        @php $rejected = \App\Models\Letter::where('status', 'ditolak')->count(); @endphp {{ $rejected }}
-                    </h3></div>
+                    <div>
+                        <h6 class="text-muted mb-1">Ditolak</h6>
+                        <h3 class="mb-0" id="statRejected">{{ $stats['rejected'] ?? 0 }}</h3>
+                    </div>
                     <i class="bi bi-x-circle text-danger" style="font-size: 2.5rem; opacity: 0.3;"></i>
                 </div>
             </div>
@@ -117,8 +138,8 @@
                             <th width="10%">Jenis</th>
                             <th width="20%">Perihal</th>
                             <th width="10%">Tanggal</th>
-                            <th width="15%">Status</th>
-                            <th width="15%">Dibuat Oleh</th>
+                            <th width="12%">Struktur/Unit</th>
+                            <th width="13%">Status</th>
                             <th width="10%" class="text-center">Aksi</th>
                         </tr>
                     </thead>
@@ -136,7 +157,7 @@
     </div>
 </div>
 
-<!-- Delete Modal (Tetap sama) -->
+<!-- Delete Modal -->
 <div class="modal fade" id="deleteModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -155,6 +176,7 @@
                     <button type="submit" class="btn btn-danger">Hapus</button>
                 </div>
             </form>
+        </div>
     </div>
 </div>
 @endsection
@@ -171,7 +193,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const pagination    = document.getElementById('paginationContainer');
     const countBadge    = document.getElementById('countBadge');
     
-    // Update stats IDs
+    // Stats elements
     const statTotal     = document.getElementById('statTotal');
     const statWaiting   = document.getElementById('statWaiting');
     const statApproved  = document.getElementById('statApproved');
@@ -201,12 +223,15 @@ document.addEventListener('DOMContentLoaded', function() {
             pagination.innerHTML = data.pagination;
             countBadge.textContent = `${data.count} Surat`;
             
-            statTotal.textContent    = data.stats.total;
-            statWaiting.textContent  = data.stats.waiting;
-            statApproved.textContent = data.stats.approved;
-            statRejected.textContent = data.stats.rejected;
+            // Update stats
+            if (data.stats) {
+                statTotal.textContent    = data.stats.total;
+                statWaiting.textContent  = data.stats.waiting;
+                statApproved.textContent = data.stats.approved;
+                statRejected.textContent = data.stats.rejected;
+            }
 
-            // Re-bind delete buttons if any
+            // Re-bind delete buttons
             document.querySelectorAll('.btn-delete-trigger').forEach(btn => {
                 btn.addEventListener('click', function() {
                     confirmDelete(this.dataset.id);
@@ -216,21 +241,23 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(err => console.error('Fetch error:', err));
     }
 
-    // Debounce untuk search (tunggu 400ms setelah berhenti mengetik)
+    // Debounce untuk search
     searchInput.addEventListener('input', function() {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => fetchData(1), 400);
     });
 
-    // Langsung fetch saat dropdown/tanggal berubah
+    // Fetch saat dropdown/tanggal berubah
     [jenisSelect, statusSelect, fromDateInput].forEach(el => {
         el.addEventListener('change', () => fetchData(1));
     });
 
     // Reset filter
     resetBtn.addEventListener('click', function() {
-        searchInput.value = ''; jenisSelect.value = ''; 
-        statusSelect.value = ''; fromDateInput.value = '';
+        searchInput.value = '';
+        jenisSelect.value = '';
+        statusSelect.value = '';
+        fromDateInput.value = '';
         fetchData(1);
     });
 
@@ -242,14 +269,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const url = new URL(link.href);
             const page = url.searchParams.get('page') || 1;
             fetchData(page);
-            window.scrollTo({ top: document.querySelector('.card.shadow-sm').offsetTop - 100, behavior: 'smooth' });
+            window.scrollTo({ 
+                top: document.querySelector('.card.shadow-sm').offsetTop - 100, 
+                behavior: 'smooth' 
+            });
         }
     });
 
     // Expose confirmDelete to window
     window.confirmDelete = function(id) {
         const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-        document.getElementById('deleteForm').action = `/letters/${id}/delete`;
+        document.getElementById('deleteForm').action = `/letters/${id}`;
         modal.show();
     };
 });

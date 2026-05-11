@@ -12,12 +12,12 @@ class LoginController extends Controller
 {
     use AuthenticatesUsers;
 
-    // protected $username = 'username'; // Jika login pakai username, bukan email
+    protected $username = 'username'; // Jika login pakai username, bukan email
 
-    // public function username()
-    // {
-    //     return 'username';
-    // }
+    public function username()
+    {
+        return 'username';
+    }
     
 
     // ✅ REDIRECT BERDASARKAN ROLE

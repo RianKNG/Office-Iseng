@@ -9,18 +9,18 @@ class Disposisi extends Model
     protected $table = 'disposisi';
     
     protected $fillable = [
-        'letter_id',           // ✅ Pastikan ada koma di setiap baris
-        'parent_id',           // ✅ <-- Kemungkinan ini yang kurang koma sebelumnya
-        'dari_user_id', 
-        'ke_user_id', 
-        'instruksi', 
-        'catatan_respon', 
-        'balasan', 
-        'prioritas', 
-        'status', 
+        'letter_id',
+        'parent_id',
+        'dari_user_id',
+        'ke_user_id',
+        'instruksi',
+        'catatan_respon',
+        'balasan',
+        'prioritas',
+        'status',
         'deadline',
         'is_locked',
-        // 'urutan_berjenjang', // ← Hapus/komentar jika kolom tidak ada di DB
+        'urutan_berjenjang', // ✅ Diaktifkan karena ada di database
     ];
 
     protected $casts = [
@@ -30,48 +30,12 @@ class Disposisi extends Model
         'updated_at' => 'datetime',
     ];
 
-    // Hapus baris ini jika kolom 'tanggal_disposisi' TIDAK ada di database:
-    // protected $dates = ['tanggal_disposisi'];
-
-    public function letter()
-    {
-        return $this->belongsTo(Letter::class, 'letter_id');
-    }
-
-    public function dari()
-    {
-        return $this->belongsTo(User::class, 'dari_user_id');
-    }
-
-    public function ke()
-    {
-        return $this->belongsTo(User::class, 'ke_user_id');
-    }
-
-    public function parent()
-    {
-        return $this->belongsTo(Disposisi::class, 'parent_id');
-    }
-
-    public function children()
-    {
-        return $this->hasMany(Disposisi::class, 'parent_id');
-    }
-
-    public function disposisiChain()
-    {
-        return $this->hasMany(Disposisi::class, 'parent_id')
-            ->with('dari', 'ke');
-    }
+    public function letter() { return $this->belongsTo(Letter::class, 'letter_id'); }
+    public function dari() { return $this->belongsTo(User::class, 'dari_user_id'); }
+    public function ke() { return $this->belongsTo(User::class, 'ke_user_id'); }
+    public function parent() { return $this->belongsTo(Disposisi::class, 'parent_id'); }
+    public function children() { return $this->hasMany(Disposisi::class, 'parent_id'); }
     
-    // ✅ Bonus: Scopes untuk query umum
-    public function scopePending($query)
-    {
-        return $query->where('status', 'pending');
-    }
-    
-    public function scopeForUser($query, $userId)
-    {
-        return $query->where('ke_user_id', $userId);
-    }
+    public function scopePending($query) { return $query->where('status', 'pending'); }
+    public function scopeForUser($query, $userId) { return $query->where('ke_user_id', $userId); }
 }

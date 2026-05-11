@@ -36,4 +36,5 @@ class Letter extends Model
     public function disposisis() {
         return $this->hasMany(Disposisi::class, 'letter_id');
     }
+    
 }

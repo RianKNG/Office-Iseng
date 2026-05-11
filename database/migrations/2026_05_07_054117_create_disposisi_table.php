@@ -27,7 +27,7 @@ class CreateDisposisiTable extends Migration
         
         $table->text('instruksi')->nullable();
         $table->enum('prioritas', ['biasa', 'penting', 'segera', 'rahasia'])->default('biasa');
-        $table->enum('status', ['pending', 'dibaca', 'diproses', 'diteruskan', 'selesai'])->default('pending');
+        $table->enum('status', ['pending', 'dibaca', 'diproses', 'diteruskan','dikembalikan','selesai'])->default('pending');
         $table->date('deadline')->nullable();
         $table->timestamps();
     });
