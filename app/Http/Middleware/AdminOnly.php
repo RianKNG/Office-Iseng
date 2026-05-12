@@ -8,15 +8,21 @@ use Illuminate\Support\Facades\Auth;
 
 class AdminOnly
 {
-    public function handle(Request $request, Closure $next)
+    
+       public function handle(Request $request, Closure $next)
     {
-        // Pastikan login dulu, baru cek kolom 'level'
-        // Sesuaikan 'admin' dengan isi kolom level Anda (misal: 'admin' atau 1)
-        if (Auth::check() && Auth::user()->level == 'admin') {
+        // 1. Cek apakah sudah login
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
+
+        // 2. Cek apakah levelnya 'admin'
+        if (Auth::user()->level === 'admin') {
             return $next($request);
         }
 
-        // Kalau bukan admin, arahkan ke home dengan pesan peringatan
-        return redirect('/home')->with('error', 'Anda tidak memiliki akses level admin.');
+        // 3. JIKA BUKAN ADMIN: Jangan lempar ke login (biar tidak loop)
+        // Lempar ke dashboard utama user biasa
+        return redirect()->route('dashboard')->with('error', 'Akses khusus Admin!');
     }
 }

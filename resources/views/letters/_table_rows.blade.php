@@ -1,121 +1,91 @@
-@forelse($letters as $index => $letter)
+@php $no = ($letters->currentPage() - 1) * $letters->perPage() + 1; @endphp
+
+@foreach($letters as $letter)
 <tr>
-    <!-- No -->
-    <td>{{ $letters->firstItem() + $index }}</td>
-    
-    <!-- Nomor Surat -->
+    <td>{{ $no++ }}</td>
     <td>
-        <a href="{{ route('letters.show', $letter->id) }}" class="fw-bold text-decoration-none">
-            {{ $letter->nomor_surat }}
-        </a>
-        @if($letter->file_path)
-            <br><i class="bi bi-paperclip text-muted small"></i>
-        @endif
+        <strong>{{ $letter->nomor_surat }}</strong><br>
+        <small class="text-muted">{{ $letter->template->nama_template ?? '-' }}</small>
     </td>
-    
-    <!-- Jenis -->
     <td>
         @php
-            $jenisBadge = ['masuk'=>'info','keluar'=>'success','nota'=>'warning'];
-            $jenisLabel = ['masuk'=>'Masuk','keluar'=>'Keluar','nota'=>'Nota'];
+            $jenisBadge = [
+                'masuk' => 'bg-info',
+                'keluar' => 'bg-success',
+                'nota' => 'bg-warning text-dark'
+            ];
         @endphp
-        <span class="badge bg-{{ $jenisBadge[$letter->jenis] ?? 'secondary' }}">
-            {{ $jenisLabel[$letter->jenis] ?? ucfirst($letter->jenis) }}
+        <span class="badge {{ $jenisBadge[$letter->jenis] ?? 'bg-secondary' }}">
+            {{ ucfirst($letter->jenis) }}
         </span>
     </td>
+    <td>{{ Str::limit($letter->perihal, 30) }}</td>
+    <td>{{ $letter->tanggal ? $letter->tanggal->format('d/m/Y') : '-' }}</td>
     
-    <!-- Perihal -->
-    <td>{{ Str::limit($letter->perihal ?? '-', 40) }}</td>
-    
-    <!-- Tanggal -->
-    <td>{{ $letter->tanggal ? $letter->tanggal->format('d M Y') : '-' }}</td>
-    
-    <!-- ✅ KOLOM BARU: Struktur/Unit Pembuat -->
+    {{-- ✅ KOLOM PENERIMA (baru) --}}
     <td>
-        @if($letter->creator)
-            <small class="d-block">
-                <span class="badge bg-secondary" style="font-size: 0.75em;">
-                    {{ $letter->creator->getStrukturLabel() }}
-                </span>
-            </small>
-            <small class="text-muted">
-                {{ ucfirst($letter->creator->unit_kerja ?? 'umum') }}
-            </small>
+        @if($letter->penerima)
+            <div class="d-flex align-items-center">
+                <i class="bi bi-person me-2 text-muted"></i>
+                <div>
+                    <div class="fw-bold">{{ $letter->penerima->nama_lengkap }}</div>
+                    <small class="text-muted">{{ $letter->penerima->jabatan }}</small>
+                </div>
+            </div>
         @else
-            <span class="text-muted small">-</span>
+            <span class="text-muted">-</span>
         @endif
     </td>
     
-    <!-- Status -->
     <td>
         @php
             $statusBadge = [
-                'draft' => 'secondary',
-                'menunggu_verifikasi' => 'warning',
-                'disetujui' => 'success',
-                'diproses' => 'info',
-                'ditolak' => 'danger',
-                'arsip' => 'dark'
+                'draft' => 'bg-secondary',
+                'menunggu_verifikasi' => 'bg-warning text-dark',
+                'disetujui' => 'bg-success',
+                'ditolak' => 'bg-danger',
+                'diproses' => 'bg-primary',
+                'arsip' => 'bg-info text-dark'
             ];
             $statusLabel = [
                 'draft' => 'Draft',
                 'menunggu_verifikasi' => 'Menunggu',
-                'disetujui' => 'Selesai',  // ✅ Ubah dari 'Disetujui' ke 'Selesai'
-                'diproses' => 'Diproses',
+                'disetujui' => 'Selesai',
                 'ditolak' => 'Ditolak',
+                'diproses' => 'Diproses',
                 'arsip' => 'Arsip'
             ];
         @endphp
-        <span class="badge bg-{{ $statusBadge[$letter->status] ?? 'secondary' }}">
-            {{ $statusLabel[$letter->status] ?? ucfirst(str_replace('_', ' ', $letter->status)) }}
+        <span class="badge {{ $statusBadge[$letter->status] ?? 'bg-secondary' }}">
+            {{ $statusLabel[$letter->status] ?? $letter->status }}
         </span>
     </td>
-    
-    <!-- Dibuat Oleh (dengan Level Label) -->
-    <td>
-        @if($letter->creator)
-            <small>
-                <strong>{{ $letter->creator->nama_lengkap }}</strong><br>
-                <span class="text-muted" style="font-size: 0.85em;">
-                    {{ $letter->creator->getLevelLabel() }}
-                </span>
-            </small>
-        @else
-            <span class="text-muted small">-</span>
-        @endif
-    </td>
-    
-    <!-- Aksi -->
     <td class="text-center">
-        <div class="btn-group" role="group">
-            <a href="{{ route('letters.show', $letter->id) }}" 
-               class="btn btn-sm btn-outline-primary" 
-               title="Lihat Detail">
-                <i class="bi bi-eye">Lihat</i>
+        <div class="btn-group btn-group-sm">
+            <a href="{{ route('letters.show', $letter->id) }}" class="btn btn-outline-primary" title="Lihat">
+                <i class="bi bi-eye"></i>
             </a>
-            
-            @if($letter->created_by == auth()->id() && in_array($letter->status, ['draft', 'menunggu_verifikasi']))
-                <a href="{{ route('letters.edit', $letter->id) }}" 
-                   class="btn btn-sm btn-outline-warning" 
-                   title="Edit">
-                    <i class="bi bi-pencil">Edit</i>
-                </a>
-                <button type="button" 
-                        class="btn btn-sm btn-outline-danger btn-delete-trigger" 
-                        data-id="{{ $letter->id }}" 
-                        title="Hapus">
-                    <i class="bi bi-trash">Hapus</i>
-                </button>
+            @if($letter->status === 'draft' && $letter->created_by === auth()->id())
+            <a href="{{ route('letters.edit', $letter->id) }}" class="btn btn-outline-warning" title="Edit">
+                <i class="bi bi-pencil"></i>
+            </a>
+            @endif
+            @if($letter->created_by === auth()->id() && in_array($letter->status, ['draft', 'ditolak']))
+            <button type="button" class="btn btn-outline-danger btn-delete-trigger" 
+                    data-id="{{ $letter->id }}" title="Hapus">
+                <i class="bi bi-trash"></i>
+            </button>
             @endif
         </div>
     </td>
 </tr>
-@empty
+@endforeach
+
+@if($letters->isEmpty())
 <tr>
-    <td colspan="9" class="text-center py-5">
-        <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
-        <p class="text-muted mt-3 mb-0">Tidak ada data sesuai filter</p>
-        <small class="text-muted">Coba ubah filter atau buat surat baru</small>
+    <td colspan="8" class="text-center py-4 text-muted">
+        <i class="bi bi-inbox fs-4 d-block mb-2"></i>
+        Tidak ada surat ditemukan.
     </td>
 </tr>
-@endforelse
+@endif

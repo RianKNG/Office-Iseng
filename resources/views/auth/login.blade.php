@@ -412,14 +412,7 @@
                         <label class="form-label">Email Address</label>
                         <div class="input-group-custom">
                             <i class="fas fa-envelope"></i>
-                            <input type="email" 
-                                   class="form-control @error('email') is-invalid @enderror" 
-                                   name="email" 
-                                   value="{{ old('email') }}" 
-                                   placeholder="nama@pdam.go.id"
-                                   required 
-                                   autocomplete="email" 
-                                   autofocus>
+                            <input id="username" type="text" name="username" value="{{ old('username') }}" required autofocus>
                         </div>
                         @error('email')
                             <span class="invalid-feedback">{{ $message }}</span>

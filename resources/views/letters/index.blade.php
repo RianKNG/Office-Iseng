@@ -138,7 +138,7 @@
                             <th width="10%">Jenis</th>
                             <th width="20%">Perihal</th>
                             <th width="10%">Tanggal</th>
-                            <th width="12%">Struktur/Unit</th>
+                            <th width="12%">Penerima</th>
                             <th width="13%">Status</th>
                             <th width="10%" class="text-center">Aksi</th>
                         </tr>
@@ -210,18 +210,18 @@ document.addEventListener('DOMContentLoaded', function() {
             page: page
         });
 
-        fetch(`{{ route('letters.index') }}?${params.toString()}`, {
+        fetch('{{ route("letters.index") }}?' + params.toString(), {
             headers: {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             }
         })
-        .then(res => res.json())
-        .then(data => {
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
             // Update UI
             tableBody.innerHTML = data.tableHtml;
             pagination.innerHTML = data.pagination;
-            countBadge.textContent = `${data.count} Surat`;
+            countBadge.textContent = data.count + ' Surat';
             
             // Update stats
             if (data.stats) {
@@ -232,25 +232,29 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Re-bind delete buttons
-            document.querySelectorAll('.btn-delete-trigger').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    confirmDelete(this.dataset.id);
-                });
-            });
+            var deleteBtns = document.querySelectorAll('.btn-delete-trigger');
+            for (var i = 0; i < deleteBtns.length; i++) {
+                deleteBtns[i].addEventListener('click', (function(btn) {
+                    return function() { confirmDelete(btn.dataset.id); };
+                })(deleteBtns[i]));
+            }
         })
-        .catch(err => console.error('Fetch error:', err));
+        .catch(function(err) { console.error('Fetch error:', err); });
     }
 
     // Debounce untuk search
     searchInput.addEventListener('input', function() {
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => fetchData(1), 400);
+        debounceTimer = setTimeout(function() { fetchData(1); }, 400);
     });
 
     // Fetch saat dropdown/tanggal berubah
-    [jenisSelect, statusSelect, fromDateInput].forEach(el => {
-        el.addEventListener('change', () => fetchData(1));
-    });
+    var filterElements = [jenisSelect, statusSelect, fromDateInput];
+    for (var i = 0; i < filterElements.length; i++) {
+        filterElements[i].addEventListener('change', (function(el) {
+            return function() { fetchData(1); };
+        })(filterElements[i]));
+    }
 
     // Reset filter
     resetBtn.addEventListener('click', function() {
@@ -263,11 +267,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Pagination click handler (AJAX)
     document.addEventListener('click', function(e) {
-        const link = e.target.closest('.pagination a');
+        var link = e.target.closest('.pagination a');
         if (link) {
             e.preventDefault();
-            const url = new URL(link.href);
-            const page = url.searchParams.get('page') || 1;
+            var url = new URL(link.href);
+            var page = url.searchParams.get('page') || 1;
             fetchData(page);
             window.scrollTo({ 
                 top: document.querySelector('.card.shadow-sm').offsetTop - 100, 
@@ -278,8 +282,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Expose confirmDelete to window
     window.confirmDelete = function(id) {
-        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-        document.getElementById('deleteForm').action = `/letters/${id}`;
+        var modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        document.getElementById('deleteForm').action = '/letters/' + id;
         modal.show();
     };
 });

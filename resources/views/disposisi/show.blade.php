@@ -63,7 +63,12 @@
                                 </div>
                                 <div>
                                     <strong>{{ $disposisi->dari->nama_lengkap ?? '-' }}</strong><br>
-                                    <small class="text-muted">{{ $disposisi->dari->jabatan ?? '-' }}</small>
+                                    <small class="text-muted">
+                                        {{ $disposisi->dari->jabatan ?? '-' }} 
+                                        @if($disposisi->dari)
+                                            • {{ $disposisi->dari->getStrukturLabel() }}
+                                        @endif
+                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -78,7 +83,12 @@
                                 </div>
                                 <div>
                                     <strong>{{ $disposisi->ke->nama_lengkap ?? '-' }}</strong><br>
-                                    <small class="text-muted">{{ $disposisi->ke->jabatan ?? '-' }}</small>
+                                    <small class="text-muted">
+                                        {{ $disposisi->ke->jabatan ?? '-' }} 
+                                        @if($disposisi->ke)
+                                            • {{ $disposisi->ke->getStrukturLabel() }}
+                                        @endif
+                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -94,21 +104,21 @@
                         <div class="col-md-4">
                             <label class="text-muted small mb-1">Prioritas</label>
                             @php
-                                $prioritasBadge = [
+                                $prioritasBadge = array(
                                     'biasa' => 'secondary',
                                     'penting' => 'warning',
                                     'segera' => 'danger',
                                     'rahasia' => 'dark'
-                                ];
-                                $prioritasIcon = [
+                                );
+                                $prioritasIcon = array(
                                     'biasa' => 'circle',
                                     'penting' => 'exclamation-triangle',
                                     'segera' => 'lightning-fill',
                                     'rahasia' => 'lock-fill'
-                                ];
+                                );
                             @endphp
-                            <span class="badge bg-{{ $prioritasBadge[$disposisi->prioritas] ?? 'secondary' }}">
-                                <i class="bi bi-{{ $prioritasIcon[$disposisi->prioritas] ?? 'circle' }}"></i> 
+                            <span class="badge bg-{{ isset($prioritasBadge[$disposisi->prioritas]) ? $prioritasBadge[$disposisi->prioritas] : 'secondary' }}">
+                                <i class="bi bi-{{ isset($prioritasIcon[$disposisi->prioritas]) ? $prioritasIcon[$disposisi->prioritas] : 'circle' }}"></i> 
                                 {{ ucfirst($disposisi->prioritas) }}
                             </span>
                         </div>
@@ -140,6 +150,17 @@
                                 <p class="mb-0 fst-italic">"{{ $disposisi->instruksi ?? '-' }}"</p>
                             </div>
                         </div>
+                        
+                        <!-- ✅ Tipe Disposisi (Lintas Struktur / Internal) -->
+                        <div class="col-12">
+                            <label class="text-muted small mb-1">Tipe Alur</label>
+                            <span class="badge {{ $disposisi->getTipeBadgeClass() }}">
+                                {!! $disposisi->getStrukturLabel() !!}
+                                @if($disposisi->isCrossStructure())
+                                    <i class="bi bi-arrow-left-right ms-1" title="Lintas Struktur"></i>
+                                @endif
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -170,9 +191,9 @@
                             <th>Jenis</th>
                             <td>
                                 @php
-                                    $jenisBadge = ['masuk'=>'info', 'keluar'=>'success', 'nota'=>'warning'];
+                                    $jenisBadge = array('masuk'=>'info', 'keluar'=>'success', 'nota'=>'warning');
                                 @endphp
-                                <span class="badge bg-{{ $jenisBadge[$disposisi->letter->jenis] ?? 'secondary' }}">
+                                <span class="badge bg-{{ isset($jenisBadge[$disposisi->letter->jenis]) ? $jenisBadge[$disposisi->letter->jenis] : 'secondary' }}">
                                     {{ ucfirst($disposisi->letter->jenis ?? '-') }}
                                 </span>
                             </td>
@@ -185,25 +206,25 @@
                             <th>Status Surat</th>
                             <td>
                                 @php
-                                    $statusBadge = [
+                                    $statusBadge = array(
                                         'draft' => 'secondary',
                                         'menunggu_verifikasi' => 'warning',
                                         'disetujui' => 'success',
                                         'ditolak' => 'danger',
                                         'diproses' => 'info',
                                         'arsip' => 'dark'
-                                    ];
-                                    $statusLabel = [
+                                    );
+                                    $statusLabel = array(
                                         'draft' => 'Draft',
                                         'menunggu_verifikasi' => 'Menunggu',
                                         'disetujui' => 'Selesai',
                                         'ditolak' => 'Ditolak',
                                         'diproses' => 'Diproses',
                                         'arsip' => 'Arsip'
-                                    ];
+                                    );
                                 @endphp
-                                <span class="badge bg-{{ $statusBadge[$disposisi->letter->status] ?? 'secondary' }}">
-                                    {{ $statusLabel[$disposisi->letter->status] ?? ucfirst(str_replace('_', ' ', $disposisi->letter->status)) }}
+                                <span class="badge bg-{{ isset($statusBadge[$disposisi->letter->status]) ? $statusBadge[$disposisi->letter->status] : 'secondary' }}">
+                                    {{ isset($statusLabel[$disposisi->letter->status]) ? $statusLabel[$disposisi->letter->status] : ucfirst(str_replace('_', ' ', $disposisi->letter->status)) }}
                                 </span>
                             </td>
                         </tr>
@@ -272,9 +293,15 @@
                         <div class="flex-grow-1">
                             <p class="mb-1">
                                 <strong>Dari:</strong> {{ $disposisi->parent->dari->nama_lengkap ?? '-' }}
+                                @if($disposisi->parent->dari)
+                                    <small class="text-muted">({{ $disposisi->parent->dari->getStrukturLabel() }})</small>
+                                @endif
                             </p>
                             <p class="mb-1">
                                 <strong>Kepada:</strong> {{ $disposisi->parent->ke->nama_lengkap ?? '-' }}
+                                @if($disposisi->parent->ke)
+                                    <small class="text-muted">({{ $disposisi->parent->ke->getStrukturLabel() }})</small>
+                                @endif
                             </p>
                             <p class="mb-0">
                                 <strong>Instruksi:</strong> 
@@ -295,7 +322,7 @@
         <div class="col-lg-4">
             
             <!-- Card: Proses Disposisi -->
-            @if(in_array($disposisi->status, ['pending', 'dibaca']))
+            @if(in_array($disposisi->status, array('pending', 'dibaca')))
             <div class="card shadow-sm border-primary mb-4">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0"><i class="bi bi-gear-fill"></i> Proses Disposisi</h5>
@@ -316,20 +343,27 @@
                             @enderror
                             <small class="text-muted">Opsional - akan menggantikan instruksi sebelumnya</small>
                         </div>
-{{-- Cek apakah user yang login namanya adalah 'a' --}}
-    @if(in_array($disposisi->status, ['pending', 'dibaca']) && auth()->user()->level !== 'kasubag_kasie')
- <div class= "card shadow-sm border-primary mb-4 " > 
-        <button type="submit" class="btn btn-success w-100 mb-2">
-                            <i class="bi bi-check-circle"></i> Setujui & Teruskan
-                        </button>
-    @endif
+
+                        {{-- ✅ UPDATE: Cek level terpisah (PHP 7.4 compatible) --}}
+                        @php
+                            $userLevel = auth()->user()->level;
+                            $isKasubagKasie = in_array($userLevel, array('kasubag', 'kasie', 'kanit'));
+                            $isKabagKacab = in_array($userLevel, array('kabag', 'kacab'));
+                            $isLeader = in_array($userLevel, array('kabag', 'kacab', 'dirut', 'admin'));
+                        @endphp
+
+                        @if(in_array($disposisi->status, array('pending', 'dibaca')) && !$isKasubagKasie)
+                            <button type="submit" class="btn btn-success w-100 mb-2">
+                                <i class="bi bi-check-circle"></i> Setujui & Teruskan
+                            </button>
+                        @endif
                         
                         <small class="text-muted d-block text-center">
-                            @if(auth()->user()->level == 'kasubag_kasie')
-                                Bisa menolak atau meneruskan ke Kabag
-                            @elseif(auth()->user()->level == 'kabag_kacab')
+                            @if($isKasubagKasie)
+                                Bisa menolak atau meneruskan ke Kabag/Kacab
+                            @elseif($isKabagKacab)
                                 Bisa mengembalikan atau meneruskan ke Dirut
-                            @elseif(auth()->user()->level == 'dirut')
+                            @elseif($userLevel == 'dirut')
                                 Persetujuan final (Dirut) atau disposisi ulang
                             @else
                                 Akan diteruskan ke level berikutnya
@@ -374,13 +408,13 @@
                     <div class="card-body text-center py-4">
                         <div class="mb-3">
                             @php
-                                $statusIcons = [
-                                    'diproses' => ['icon' => 'check-circle-fill', 'color' => 'success', 'label' => 'Sudah Diproses'],
-                                    'diteruskan' => ['icon' => 'share-fill', 'color' => 'info', 'label' => 'Diteruskan'],
-                                    'selesai' => ['icon' => 'archive-fill', 'color' => 'secondary', 'label' => 'Selesai'],
-                                    'dikembalikan' => ['icon' => 'arrow-return-left', 'color' => 'warning', 'label' => 'Dikembalikan'],
-                                ];
-                                $info = $statusIcons[$disposisi->status] ?? ['icon' => 'clock', 'color' => 'muted', 'label' => ucfirst($disposisi->status)];
+                                $statusIcons = array(
+                                    'diproses' => array('icon' => 'check-circle-fill', 'color' => 'success', 'label' => 'Sudah Diproses'),
+                                    'diteruskan' => array('icon' => 'share-fill', 'color' => 'info', 'label' => 'Diteruskan'),
+                                    'selesai' => array('icon' => 'archive-fill', 'color' => 'secondary', 'label' => 'Selesai'),
+                                    'dikembalikan' => array('icon' => 'arrow-return-left', 'color' => 'warning', 'label' => 'Dikembalikan'),
+                                );
+                                $info = isset($statusIcons[$disposisi->status]) ? $statusIcons[$disposisi->status] : array('icon' => 'clock', 'color' => 'muted', 'label' => ucfirst($disposisi->status));
                             @endphp
                             <i class="bi bi-{{ $info['icon'] }} text-{{ $info['color'] }}" style="font-size: 4rem;"></i>
                             <h5 class="mt-3 text-{{ $info['color'] }}">{{ $info['label'] }}</h5>
@@ -443,20 +477,18 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold">Teruskan Kepada</label>
                         <select name="ke_user_id" class="form-select" required>
-                            <option value="">-- Pilih User Hanya--</option>
-{{-- //saya ganti karena saya buat di vontroller aviable yang memenaggil fungsi sortir dar db nya                             --}}
-                            {{-- @foreach(\App\Models\User::where('status','aktif')->where('id', '!=', auth()->id())->orderBy('nama_lengkap')->get() as $user)
+                            <option value="">-- Pilih User --</option>
+                            {{-- ✅ Menggunakan $availableUsers dari controller (sudah di-filter) --}}
+                            @foreach($availableUsers as $user)
                                 <option value="{{ $user->id }}">
-                                    {{ $user->nama_lengkap }} - {{ $user->jabatan }}
+                                    {{ $user->nama_lengkap }} - {{ $user->jabatan }} 
+                                    ({{ $user->getStrukturLabel() }})
                                 </option>
-                            @endforeach --}}
-{{-- ini penggantinya cddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd--}}
-                        @foreach($availableUsers as $user)
-                            <option value="{{ $user->id }}">
-                                {{ $user->nama_lengkap }} - {{ $user->jabatan }}
-                            </option>
-                        @endforeach
+                            @endforeach
                         </select>
+                        <small class="text-muted">
+                            Hanya user yang valid sesuai hierarki & struktur yang ditampilkan
+                        </small>
                     </div>
                     
                     <div class="mb-3">
@@ -482,16 +514,12 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Auto-hide alert setelah 5 detik
     setTimeout(function() {
-        document.querySelectorAll('.alert').forEach(function(alert) {
-            const bsAlert = new bootstrap.Alert(alert);
+        var alerts = document.querySelectorAll('.alert');
+        for (var i = 0; i < alerts.length; i++) {
+            var bsAlert = new bootstrap.Alert(alerts[i]);
             bsAlert.close();
-        });
+        }
     }, 5000);
 });
 </script>
 @endpush
-
-
-
-
-

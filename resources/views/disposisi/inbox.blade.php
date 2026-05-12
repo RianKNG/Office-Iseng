@@ -33,8 +33,14 @@
         </div>
     @endif
 
-    <!-- 🔍 Filter (Opsional: hanya untuk Kabag/Dirut) -->
-    @if(auth()->user()->level_urutan >= 3)
+    <!-- 🔍 Filter (Opsional: untuk Leader/Verifier) -->
+    @php
+        $userLevel = auth()->user()->level;
+        $isLeader = in_array($userLevel, array('kabag', 'kacab', 'dirut', 'admin'));
+        $isVerifier = in_array($userLevel, array('kasubag', 'kasie', 'kanit', 'kabag', 'kacab', 'dirut', 'admin'));
+    @endphp
+
+    @if($isLeader)
     <div class="card shadow-sm mb-4">
         <div class="card-body">
             <form method="GET" class="row g-3">
@@ -62,7 +68,7 @@
                         <option value="selesai" {{ request('status')=='selesai'?'selected':'' }}>Selesai</option>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label small">Struktur</label>
                     <select name="struktur" class="form-select form-select-sm">
                         <option value="">Semua</option>
@@ -70,12 +76,24 @@
                         <option value="cabang" {{ request('struktur')=='cabang'?'selected':'' }}>Cabang</option>
                     </select>
                 </div>
-                <div class="col-md-2 d-flex align-items-end gap-2">
-                    <button type="submit" class="btn btn-primary btn-sm w-50">
-                        <i class="bi bi-search"></i> Filter
+                <div class="col-md-2">
+                    <label class="form-label small">Level Tujuan</label>
+                    <select name="level_tujuan" class="form-select form-select-sm">
+                        <option value="">Semua</option>
+                        <option value="kabag" {{ request('level_tujuan')=='kabag'?'selected':'' }}>Kabag (Pusat)</option>
+                        <option value="kacab" {{ request('level_tujuan')=='kacab'?'selected':'' }}>Kacab (Cabang)</option>
+                        <option value="kasubag" {{ request('level_tujuan')=='kasubag'?'selected':'' }}>Kasubag</option>
+                        <option value="kasie" {{ request('level_tujuan')=='kasie'?'selected':'' }}>Kasie</option>
+                    </select>
+                </div>
+                <div class="col-md-1 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="bi bi-search"></i>
                     </button>
-                    <a href="{{ route('disposisi.inbox') }}" class="btn btn-outline-secondary btn-sm w-50">
-                        <i class="bi bi-x-circle"></i> Reset
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <a href="{{ route('disposisi.inbox') }}" class="btn btn-outline-secondary btn-sm w-100" title="Reset">
+                        <i class="bi bi-x-circle"></i>
                     </a>
                 </div>
             </form>
@@ -99,7 +117,7 @@
                                 <th width="12%">Instruksi</th>
                                 <th width="8%">Prioritas</th>
                                 <th width="8%">Status</th>
-                                <th width="10%">Deadline</th>
+                                <th width="7%">Deadline</th>
                                 <th width="7%" class="text-center">Aksi</th>
                             </tr>
                         </thead>
@@ -112,10 +130,10 @@
                                 <!-- Tanggal -->
                                 <td>
                                     <small class="d-block fw-bold">
-                                        {{ $disp->created_at->format('d M Y') }}
+                                        {{ $disp->created_at ? $disp->created_at->format('d M Y') : '-' }}
                                     </small>
                                     <small class="text-muted">
-                                        {{ $disp->created_at->format('H:i') }} WIB
+                                        {{ $disp->created_at ? $disp->created_at->format('H:i') : '-' }} WIB
                                     </small>
                                 </td>
                                 
@@ -140,7 +158,7 @@
                                             {{ ucfirst($disp->dari->unit_kerja ?? 'umum') }}
                                         </small>
                                     @else
-                                        <span class="text-muted"></span>
+                                        <span class="text-muted">-</span>
                                     @endif
                                 </td>
                                 
@@ -148,16 +166,16 @@
                                 <td>
                                     <a href="{{ route('disposisi.show', $disp->id) }}" 
                                        class="fw-bold text-decoration-none text-primary">
-                                        {{ $disp->letter->nomor_surat ?? '-' }}
+                                        {{ $disp->letter ? $disp->letter->nomor_surat : '-' }}
                                     </a>
-                                    @if($disp->letter->file_path)
+                                    @if($disp->letter && $disp->letter->file_path)
                                         <br><i class="bi bi-paperclip text-muted small"></i>
                                     @endif
                                 </td>
                                 
                                 <!-- Perihal -->
                                 <td>
-                                    <small>{{ Str::limit($disp->letter->perihal ?? '-', 35) }}</small>
+                                    <small>{{ $disp->letter ? Str::limit($disp->letter->perihal ?? '-', 35) : '-' }}</small>
                                 </td>
                                 
                                 <!-- Instruksi -->
@@ -170,14 +188,14 @@
                                 <!-- Prioritas -->
                                 <td>
                                     @php
-                                        $prioritasBadge = [
+                                        $prioritasBadge = array(
                                             'biasa' => 'secondary',
                                             'penting' => 'warning',
                                             'segera' => 'danger',
                                             'rahasia' => 'dark'
-                                        ];
+                                        );
                                     @endphp
-                                    <span class="badge bg-{{ $prioritasBadge[$disp->prioritas] ?? 'secondary' }}">
+                                    <span class="badge bg-{{ isset($prioritasBadge[$disp->prioritas]) ? $prioritasBadge[$disp->prioritas] : 'secondary' }}">
                                         {{ ucfirst($disp->prioritas) }}
                                     </span>
                                 </td>
@@ -185,16 +203,16 @@
                                 <!-- Status -->
                                 <td>
                                     @php
-                                        $statusBadge = [
+                                        $statusBadge = array(
                                             'pending' => 'warning',
                                             'dibaca' => 'info',
                                             'diproses' => 'primary',
                                             'diteruskan' => 'success',
                                             'selesai' => 'secondary',
                                             'dikembalikan' => 'danger'
-                                        ];
+                                        );
                                     @endphp
-                                    <span class="badge bg-{{ $statusBadge[$disp->status] ?? 'secondary' }}">
+                                    <span class="badge bg-{{ isset($statusBadge[$disp->status]) ? $statusBadge[$disp->status] : 'secondary' }}">
                                         {{ ucfirst(str_replace('_', ' ', $disp->status)) }}
                                     </span>
                                 </td>
@@ -222,7 +240,7 @@
                                     <a href="{{ route('disposisi.show', $disp->id) }}" 
                                        class="btn btn-sm btn-primary" 
                                        title="Lihat & Proses">
-                                        <i class="bi bi-eye">Lihat</i>
+                                        <i class="bi bi-eye"></i>
                                     </a>
                                 </td>
                             </tr>
@@ -242,13 +260,13 @@
                 <i class="bi bi-inbox text-muted" style="font-size: 4rem;"></i>
                 <h5 class="mt-3 text-muted">Tidak ada disposisi masuk</h5>
                 <p class="text-muted mb-0">
-                    @if(request()->hasAny(['search', 'prioritas', 'status', 'struktur']))
+                    @if(request()->hasAny(array('search', 'prioritas', 'status', 'struktur', 'level_tujuan')))
                         Coba reset filter untuk melihat semua disposisi
                     @else
                         Disposisi akan muncul ketika ada surat yang diteruskan ke Anda
                     @endif
                 </p>
-                @if(request()->hasAny(['search', 'prioritas', 'status', 'struktur']))
+                @if(request()->hasAny(array('search', 'prioritas', 'status', 'struktur', 'level_tujuan')))
                     <a href="{{ route('disposisi.inbox') }}" class="btn btn-outline-primary mt-3">
                         <i class="bi bi-x-circle"></i> Reset Filter
                     </a>
