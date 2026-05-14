@@ -407,14 +407,19 @@
                 
                 <form method="POST" action="{{ route('login') }}">
                     @csrf
-                    
+
                     <div class="form-group">
-                        <label class="form-label">Email Address</label>
+                        <label class="form-label">Password</label>
                         <div class="input-group-custom">
-                            <i class="fas fa-envelope"></i>
-                            <input id="username" type="text" name="username" value="{{ old('username') }}" required autofocus>
+                            <i class="fas fa-lock"></i>
+                            <input type="text" 
+                                   id="username" 
+                                   class="form-control @error('username') is-invalid @enderror" 
+                                   name="username" 
+                                   value="{{ old('username') }}"
+                                   required autofocus>
                         </div>
-                        @error('email')
+                         @error('email')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
                     </div>

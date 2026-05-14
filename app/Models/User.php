@@ -195,5 +195,23 @@ public function getAvailableForwardTargets()
         }
         return ucfirst(str_replace('_', ' ', $this->level));
     }
+    // ✅ ACCESSOR: Urutan level untuk sorting
+public function getUrutanAttribute()
+{
+    $mapping = [
+        'admin'    => 7,
+        'dirut'    => 6,
+        'kabag'    => 5,
+        'kacab'    => 5,
+        'kanit'    => 4,
+        'kasubag'  => 3,
+        'kasie'    => 3,
+        'staff'    => 1,
+    ];
+
+    return $mapping[$this->level] ?? 0;
+}
+    
+    
     
 }

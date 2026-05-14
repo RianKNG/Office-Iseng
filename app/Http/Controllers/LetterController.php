@@ -34,111 +34,101 @@ class LetterController extends Controller
     }
 
     public function store(Request $request)
-    {
-        Log::info('=== STORE LETTER ===', [
-            'user_id' => auth()->id(),
-            'request' => $request->all()
+{
+    Log::info('=== STORE LETTER ===', [
+        'user_id' => auth()->id(),
+        'request' => $request->all()
+    ]);
+
+    // ✅ Validasi conditional: ke_user_id hanya wajib untuk template dengan disposisi
+    $template = Template::find($request->template_id);
+    $hasDisposisi = in_array(strtolower($template->kode_template ?? ''), ['sk-resmi', 'nd-int']);
+    
+    $rules = [
+        'template_id' => 'required|exists:templates,id',
+        'nomor_surat' => 'required|string|max:100',
+        'tanggal'     => 'required|date',
+        'perihal'     => 'required|string|max:255',
+        'fields.*'    => 'nullable|string|max:1000',
+        'file_path'   => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240'
+    ];
+    
+    if ($hasDisposisi) {
+        $rules['ke_user_id'] = 'required|exists:users,id';
+    }
+    
+    $request->validate($rules);
+
+    DB::beginTransaction();
+    try {
+        $template = Template::findOrFail($request->template_id);
+        
+        $filePath = null;
+        if ($request->hasFile('file_path')) {
+            $filePath = $request->file('file_path')->store('letters', 'public');
+        }
+
+        // 1. Simpan Header Surat
+        $letter = Letter::create([
+            'template_id'   => $request->template_id,
+            'nomor_surat'   => $request->nomor_surat,
+            'tanggal'       => $request->tanggal,
+            'perihal'       => $request->perihal,
+            'jenis'         => $template->jenis,
+            'status'        => 'menunggu_verifikasi',
+            'current_level' => 1,
+            'created_by'    => auth()->id(),
+            'ke_user_id'    => $request->filled('ke_user_id') ? $request->ke_user_id : null, // ✅ Conditional
+            'file_path'     => $filePath,
         ]);
 
-        // ✅ Validasi conditional: ke_user_id hanya wajib untuk template dengan disposisi
-        $template = Template::find($request->template_id);
-        $hasDisposisi = in_array(strtolower($template->kode_template ?? ''), array('sk-resmi', 'nd-int'));
-        
-        $rules = array(
-            'template_id' => 'required|exists:templates,id',
-            'nomor_surat' => 'required|string|max:100',
-            'tanggal'     => 'required|date',
-            'perihal'     => 'required|string|max:255',
-            'fields.*'    => 'nullable|string|max:1000',
-            'file_path'   => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240'
-        );
-        
-        if ($hasDisposisi) {
-            $rules['ke_user_id'] = 'required|exists:users,id';
-        }
-        
-        $request->validate($rules);
-
-        DB::beginTransaction();
-        try {
-            $template = Template::findOrFail($request->template_id);
-            
-            // Handle file upload
-            $filePath = null;
-            if ($request->hasFile('file_path')) {
-                $filePath = $request->file('file_path')->store('letters', 'public');
-            }
-
-            // 1. Simpan Header Surat
-            $letter = Letter::create(array(
-                'template_id'   => $request->template_id,
-                'nomor_surat'   => $request->nomor_surat,
-                'tanggal'       => $request->tanggal,
-                'perihal'       => $request->perihal,
-                'jenis'         => $template->jenis,
-                'status'        => 'menunggu_verifikasi',
-                'current_level' => 1,
-                'created_by'    => auth()->id(),
-                'ke_user_id'    => $request->filled('ke_user_id') ? $request->ke_user_id : null,
-                'file_path'     => $filePath,
-            ));
-
-            // 2. Simpan Dynamic Fields
-            if ($request->has('fields') && is_array($request->fields)) {
-                foreach ($request->fields as $fieldId => $value) {
-                    if ($value !== null && $value !== '') {
-                        LetterValue::create(array(
-                            'letter_id' => $letter->id,
-                            'field_id'  => $fieldId,
-                            'nilai'     => is_string($value) ? trim($value) : $value
-                        ));
-                    }
+        // 2. Simpan Dynamic Fields
+        if ($request->has('fields') && is_array($request->fields)) {
+            foreach ($request->fields as $fieldId => $value) {
+                if ($value !== null && $value !== '') {
+                    LetterValue::create([
+                        'letter_id' => $letter->id,
+                        'field_id'  => $fieldId,
+                        'nilai'     => is_string($value) ? trim($value) : $value
+                    ]);
                 }
             }
+        }
 
-            // ✅ VALIDASI ROUTING + Buat Disposisi (hanya jika ada ke_user_id)
-            if ($request->filled('ke_user_id')) {
-                $sender = auth()->user();
-                $target = User::find($request->ke_user_id);
-                
-                if ($target && !$sender->canForwardTo($target)) {
-                    DB::rollBack();
-                    return back()->withInput()->with('error', 
-                        '❌ Anda tidak dapat meneruskan surat ke user ini (beda struktur/unit).');
-                }
-
-                Disposisi::create(array(
-                    'letter_id'      => $letter->id,
-                    'dari_user_id'   => auth()->id(),
-                    'ke_user_id'     => $request->ke_user_id,
-                    'instruksi'      => 'Surat baru - mohon ditindaklanjuti',
-                    'prioritas'      => 'biasa',
-                    'status'         => 'pending',
-                    'deadline'       => now()->addDays(3),
-                ));
+        // 3. Buat Disposisi (hanya jika ada ke_user_id)
+        if ($request->filled('ke_user_id')) {
+            $sender = auth()->user();
+            $target = User::find($request->ke_user_id);
+            
+            if ($target && !$sender->canForwardTo($target)) {
+                DB::rollBack();
+                return back()->withInput()->with('error', 
+                    '❌ Anda tidak dapat meneruskan surat ke user ini (beda struktur/unit).');
             }
 
-            DB::commit();
-            
-            Log::info('Letter created successfully', array('letter_id' => $letter->id));
-            
-            return redirect()->route('letters.index')
-                ->with('success', '✅ Surat berhasil dibuat dan diteruskan.');
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            Log::error('Store Letter Failed: ' . $e->getMessage(), array(
-                'trace' => $e->getTraceAsString(),
-                'request' => $request->except(array('password'))
-            ));
-            
-            return back()
-                ->withInput()
-                ->with('error', '❌ Gagal: ' . $e->getMessage());
+            Disposisi::create([
+                'letter_id'      => $letter->id,
+                'dari_user_id'   => auth()->id(),
+                'ke_user_id'     => $request->ke_user_id,
+                'instruksi'      => 'Surat baru - mohon ditindaklanjuti',
+                'prioritas'      => 'biasa',
+                'status'         => 'pending',
+                'deadline'       => now()->addDays(3),
+            ]);
         }
+
+        DB::commit();
+        Log::info('Letter created successfully', ['letter_id' => $letter->id]);
+        
+        return redirect()->route('letters.index')
+            ->with('success', '✅ Surat berhasil dibuat dan diteruskan.');
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('Store Letter Failed: ' . $e->getMessage());
+        return back()->withInput()->with('error', '❌ Gagal: ' . $e->getMessage());
     }
-
+}
     // API Endpoint untuk AJAX
     public function getFields($templateId)
     {

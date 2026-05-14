@@ -299,9 +299,9 @@
             <div class="section-title">📝 Isi Surat</div>
             
             <div class="mb-3">
-                <label for="letter_type_selector" class="form-label">Template Cepat (Opsional)</label>
+                <label for="letter_type_selector" class="form-label">Tempddddddddddddlate Cepat (Opsional)</label>
                 <select class="form-select" id="letter_type_selector">
-                    <option value="">-- Pilih Template --</option>
+                    <option value="">-- Pilih Templadddddddte --</option>
                     <option value="undangan_rapat">Undangan Rapat</option>
                     <option value="permohonan_izin">Permohonan Izin</option>
                     <option value="pemberitahuan">Pemberitahuan</option>

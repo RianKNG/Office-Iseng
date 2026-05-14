@@ -133,7 +133,8 @@
                 <div id="preview-content" class="p-4 border rounded bg-white"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+                {{-- <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button> --}}
                 <button type="button" class="btn btn-primary" onclick="window.print()">
                     <i class="bi bi-printer me-1"></i>Cetak
                 </button>
@@ -142,6 +143,7 @@
     </div>
 </div>
 
+@push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const templateSelect = document.getElementById('template_id');
@@ -385,4 +387,5 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+@endpush
 @endsection

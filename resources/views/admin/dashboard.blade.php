@@ -84,7 +84,7 @@
                 <table class="table table-hover mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>Tanggal</th>
+                            <th>Tanghhhhhgal</th>
                             <th>Nomor Surat</th>
                             <th>Dari</th>
                             <th>Ke</th>
