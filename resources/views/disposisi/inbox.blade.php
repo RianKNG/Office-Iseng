@@ -1,5 +1,4 @@
 @extends('layouts.app')
-
 @section('content')
 <div class="container-fluid py-4">
     <!-- Header -->
@@ -41,64 +40,66 @@
     @endphp
 
     @if($isLeader)
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <form method="GET" class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label small">Cari</label>
-                    <input type="text" name="search" class="form-control form-control-sm" 
-                           value="{{ request('search') }}" placeholder="Nomor surat / perihal...">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label small">Prioritas</label>
-                    <select name="prioritas" class="form-select form-select-sm">
-                        <option value="">Semua</option>
-                        <option value="biasa" {{ request('prioritas')=='biasa'?'selected':'' }}>Biasa</option>
-                        <option value="penting" {{ request('prioritas')=='penting'?'selected':'' }}>Penting</option>
-                        <option value="segera" {{ request('prioritas')=='segera'?'selected':'' }}>Segera</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label small">Status</label>
-                    <select name="status" class="form-select form-select-sm">
-                        <option value="">Semua</option>
-                        <option value="pending" {{ request('status')=='pending'?'selected':'' }}>Pending</option>
-                        <option value="dibaca" {{ request('status')=='dibaca'?'selected':'' }}>Dibaca</option>
-                        <option value="diproses" {{ request('status')=='diproses'?'selected':'' }}>Diproses</option>
-                        <option value="selesai" {{ request('status')=='selesai'?'selected':'' }}>Selesai</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label small">Struktur</label>
-                    <select name="struktur" class="form-select form-select-sm">
-                        <option value="">Semua</option>
-                        <option value="pusat" {{ request('struktur')=='pusat'?'selected':'' }}>Pusat</option>
-                        <option value="cabang" {{ request('struktur')=='cabang'?'selected':'' }}>Cabang</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label small">Level Tujuan</label>
-                    <select name="level_tujuan" class="form-select form-select-sm">
-                        <option value="">Semua</option>
-                        <option value="kabag" {{ request('level_tujuan')=='kabag'?'selected':'' }}>Kabag (Pusat)</option>
-                        <option value="kacab" {{ request('level_tujuan')=='kacab'?'selected':'' }}>Kacab (Cabang)</option>
-                        <option value="kasubag" {{ request('level_tujuan')=='kasubag'?'selected':'' }}>Kasubag</option>
-                        <option value="kasie" {{ request('level_tujuan')=='kasie'?'selected':'' }}>Kasie</option>
-                    </select>
-                </div>
-                <div class="col-md-1 d-flex align-items-end gap-2">
-                    <button type="submit" class="btn btn-primary btn-sm w-100">
-                        <i class="bi bi-search"></i>
-                    </button>
-                </div>
-                <div class="col-md-1 d-flex align-items-end">
-                    <a href="{{ route('disposisi.inbox') }}" class="btn btn-outline-secondary btn-sm w-100" title="Reset">
-                        <i class="bi bi-x-circle"></i>
-                    </a>
-                </div>
-            </form>
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label small">Cari</label>
+                        <input type="text" name="search" class="form-control form-control-sm" 
+                              value="{{ request('search') }}" placeholder="Nomor surat / perihal...">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Prioritas</label>
+                        <select name="prioritas" class="form-select form-select-sm">
+                            <option value="">Semua</option>
+                            <option value="biasa" {{ request('prioritas')=='biasa'?'selected':'' }}>Biasa</option>
+                            <option value="penting" {{ request('prioritas')=='penting'?'selected':'' }}>Penting</option>
+                            <option value="segera" {{ request('prioritas')=='segera'?'selected':'' }}>Segera</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Status</label>
+                        <select name="status" class="form-select form-select-sm">
+                            <option value="">Semua</option>
+                            <option value="pending" {{ request('status')=='pending'?'selected':'' }}>Pending</option>
+                            <option value="dibaca" {{ request('status')=='dibaca'?'selected':'' }}>Dibaca</option>
+                            <option value="diproses" {{ request('status')=='diproses'?'selected':'' }}>Diproses</option>
+                            <option value="selesai" {{ request('status')=='selesai'?'selected':'' }}>Selesai</option>
+                        </select>
+                    </div>
+                    <!-- 🔹 BELAJAR: Ganti 'struktur' jadi 'tipe_struktur' untuk filter via relasi -->
+                    <div class="col-md-2">
+                        <label class="form-label small">Struktur</label>
+                        <select name="tipe_struktur" class="form-select form-select-sm">
+                            <option value="">Semua</option>
+                            <option value="pusat" {{ request('tipe_struktur')=='pusat'?'selected':'' }}>Pusat</option>
+                            <option value="cabang" {{ request('tipe_struktur')=='cabang'?'selected':'' }}>Cabang</option>
+                            <option value="unit" {{ request('tipe_struktur')=='unit'?'selected':'' }}>Unit</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Level Tujuan</label>
+                        <select name="level_tujuan" class="form-select form-select-sm">
+                            <option value="">Semua</option>
+                            <option value="kabag" {{ request('level_tujuan')=='kabag'?'selected':'' }}>Kabag (Pusat)</option>
+                            <option value="kacab" {{ request('level_tujuan')=='kacab'?'selected':'' }}>Kacab (Cabang)</option>
+                            <option value="kasubag" {{ request('level_tujuan')=='kasubag'?'selected':'' }}>Kasubag</option>
+                            <option value="kasie" {{ request('level_tujuan')=='kasie'?'selected':'' }}>Kasie</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end">
+                        <a href="{{ route('disposisi.inbox') }}" class="btn btn-outline-secondary btn-sm w-100" title="Reset">
+                            <i class="bi bi-x-circle"></i>
+                        </a>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
     @endif
 
     <!-- 📋 Table -->
@@ -123,127 +124,127 @@
                         </thead>
                         <tbody>
                             @foreach($disposisi as $index => $disp)
-                            <tr class="{{ $disp->status == 'pending' ? 'table-warning' : '' }}">
-                                <!-- No -->
-                                <td>{{ $disposisi->firstItem() + $index }}</td>
-                                
-                                <!-- Tanggal -->
-                                <td>
-                                    <small class="d-block fw-bold">
-                                        {{ $disp->created_at ? $disp->created_at->format('d M Y') : '-' }}
-                                    </small>
-                                    <small class="text-muted">
-                                        {{ $disp->created_at ? $disp->created_at->format('H:i') : '-' }} WIB
-                                    </small>
-                                </td>
-                                
-                                <!-- Dari (dengan Struktur/Unit & Level Label) -->
-                                <td>
-                                    @if($disp->dari)
-                                        <strong class="d-block">{{ $disp->dari->nama_lengkap }}</strong>
-                                        <small class="text-muted d-block">
-                                            {{ $disp->dari->jabatan ?? '-' }}
+                                <tr class="{{ $disp->status == 'pending' ? 'table-warning' : '' }}">
+                                    <!-- No -->
+                                    <td>{{ $disposisi->firstItem() + $index }}</td>
+                                    
+                                    <!-- Tanggal -->
+                                    <td>
+                                        <small class="d-block fw-bold">
+                                            {{ $disp->created_at ? $disp->created_at->format('d M Y') : '-' }}
                                         </small>
-                                        <!-- Badge Struktur & Level -->
-                                        <div class="mt-1">
-                                            <span class="badge bg-secondary" style="font-size: 0.7em;">
-                                                {{ $disp->dari->getStrukturLabel() }}
-                                            </span>
-                                            <span class="badge bg-info" style="font-size: 0.7em;">
-                                                {{ $disp->dari->getLevelLabel() }}
-                                            </span>
-                                        </div>
-                                        <!-- Unit Kerja -->
-                                        <small class="text-muted" style="font-size: 0.8em;">
-                                            {{ ucfirst($disp->dari->unit_kerja ?? 'umum') }}
+                                        <small class="text-muted">
+                                            {{ $disp->created_at ? $disp->created_at->format('H:i') : '-' }} WIB
                                         </small>
-                                    @else
-                                        <span class="text-muted">-</span>
-                                    @endif
-                                </td>
-                                
-                                <!-- Nomor Surat -->
-                                <td>
-                                    <a href="{{ route('disposisi.show', $disp->id) }}" 
-                                       class="fw-bold text-decoration-none text-primary">
-                                        {{ $disp->letter ? $disp->letter->nomor_surat : '-' }}
-                                    </a>
-                                    @if($disp->letter && $disp->letter->file_path)
-                                        <br><i class="bi bi-paperclip text-muted small"></i>
-                                    @endif
-                                </td>
-                                
-                                <!-- Perihal -->
-                                <td>
-                                    <small>{{ $disp->letter ? Str::limit($disp->letter->perihal ?? '-', 35) : '-' }}</small>
-                                </td>
-                                
-                                <!-- Instruksi -->
-                                <td>
-                                    <small class="fst-italic text-muted">
-                                        "{{ Str::limit($disp->instruksi ?? '-', 40) }}"
-                                    </small>
-                                </td>
-                                
-                                <!-- Prioritas -->
-                                <td>
-                                    @php
-                                        $prioritasBadge = array(
-                                            'biasa' => 'secondary',
-                                            'penting' => 'warning',
-                                            'segera' => 'danger',
-                                            'rahasia' => 'dark'
-                                        );
-                                    @endphp
-                                    <span class="badge bg-{{ isset($prioritasBadge[$disp->prioritas]) ? $prioritasBadge[$disp->prioritas] : 'secondary' }}">
-                                        {{ ucfirst($disp->prioritas) }}
-                                    </span>
-                                </td>
-                                
-                                <!-- Status -->
-                                <td>
-                                    @php
-                                        $statusBadge = array(
-                                            'pending' => 'warning',
-                                            'dibaca' => 'info',
-                                            'diproses' => 'primary',
-                                            'diteruskan' => 'success',
-                                            'selesai' => 'secondary',
-                                            'dikembalikan' => 'danger'
-                                        );
-                                    @endphp
-                                    <span class="badge bg-{{ isset($statusBadge[$disp->status]) ? $statusBadge[$disp->status] : 'secondary' }}">
-                                        {{ ucfirst(str_replace('_', ' ', $disp->status)) }}
-                                    </span>
-                                </td>
-                                
-                                <!-- Deadline -->
-                                <td>
-                                    @if($disp->deadline)
-                                        @if($disp->deadline < now() && $disp->status != 'selesai')
-                                            <span class="text-danger fw-bold small">
-                                                <i class="bi bi-exclamation-octagon"></i> 
-                                                {{ $disp->deadline->format('d M') }}
-                                            </span>
+                                    </td>
+                                    
+                                    <!-- Dari (dengan Struktur/Unit & Level Label) -->
+                                    <td>
+                                        @if($disp->dari)
+                                            <strong class="d-block">{{ $disp->dari->nama_lengkap }}</strong>
+                                            <small class="text-muted d-block">
+                                                {{ $disp->dari->jabatan ?? '-' }}
+                                            </small>
+                                            <!-- 🔹 BELAJAR: Pakai accessor untuk badge -->
+                                            <div class="mt-1">
+                                                <span class="badge bg-secondary" style="font-size: 0.7em;">
+                                                    {{ $disp->dari->getStrukturLabel() }}
+                                                </span>
+                                                <span class="badge bg-info" style="font-size: 0.7em;">
+                                                    {{ $disp->dari->getLevelLabel() }}
+                                                </span>
+                                            </div>
+                                            <!-- Unit Kerja (fallback ke accessor) -->
+                                            <small class="text-muted" style="font-size: 0.8em;">
+                                                {{ ucfirst($disp->dari->unit_kerja ?? 'umum') }}
+                                            </small>
                                         @else
-                                            <span class="text-muted small">
-                                                {{ $disp->deadline->format('d M') }}
-                                            </span>
+                                            <span class="text-muted">-</span>
                                         @endif
-                                    @else
-                                        <span class="text-muted small">-</span>
-                                    @endif
-                                </td>
-                                
-                                <!-- Aksi -->
-                                <td class="text-center">
-                                    <a href="{{ route('disposisi.show', $disp->id) }}" 
-                                       class="btn btn-sm btn-primary" 
-                                       title="Lihat & Proses">
-                                        <i class="bi bi-eye"></i>
-                                    </a>
-                                </td>
-                            </tr>
+                                    </td>
+                                    
+                                    <!-- Nomor Surat -->
+                                    <td>
+                                        <a href="{{ route('disposisi.show', $disp->id) }}" 
+                                           class="fw-bold text-decoration-none text-primary">
+                                            {{ $disp->letter ? $disp->letter->nomor_surat : '-' }}
+                                        </a>
+                                        @if($disp->letter && $disp->letter->file_path)
+                                            <br><i class="bi bi-paperclip text-muted small"></i>
+                                        @endif
+                                    </td>
+                                    
+                                    <!-- Perihal -->
+                                    <td>
+                                        <small>{{ $disp->letter ? Str::limit($disp->letter->perihal ?? '-', 35) : '-' }}</small>
+                                    </td>
+                                    
+                                    <!-- Instruksi -->
+                                    <td>
+                                        <small class="fst-italic text-muted">
+                                            "{{ Str::limit($disp->instruksi ?? '-', 40) }}"
+                                        </small>
+                                    </td>
+                                    
+                                    <!-- Prioritas -->
+                                    <td>
+                                        @php
+                                            $prioritasBadge = array(
+                                                'biasa' => 'secondary',
+                                                'penting' => 'warning',
+                                                'segera' => 'danger',
+                                                'rahasia' => 'dark'
+                                            );
+                                        @endphp
+                                        <span class="badge bg-{{ isset($prioritasBadge[$disp->prioritas]) ? $prioritasBadge[$disp->prioritas] : 'secondary' }}">
+                                            {{ ucfirst($disp->prioritas) }}
+                                        </span>
+                                    </td>
+                                    
+                                    <!-- Status -->
+                                    <td>
+                                        @php
+                                            $statusBadge = array(
+                                                'pending' => 'warning',
+                                                'dibaca' => 'info',
+                                                'diproses' => 'primary',
+                                                'diteruskan' => 'success',
+                                                'selesai' => 'secondary',
+                                                'dikembalikan' => 'danger'
+                                            );
+                                        @endphp
+                                        <span class="badge bg-{{ isset($statusBadge[$disp->status]) ? $statusBadge[$disp->status] : 'secondary' }}">
+                                            {{ ucfirst(str_replace('_', ' ', $disp->status)) }}
+                                        </span>
+                                    </td>
+                                    
+                                    <!-- Deadline -->
+                                    <td>
+                                        @if($disp->deadline)
+                                            @if($disp->deadline < now() && $disp->status != 'selesai')
+                                                <span class="text-danger fw-bold small">
+                                                    <i class="bi bi-exclamation-octagon"></i> 
+                                                    {{ $disp->deadline->format('d M') }}
+                                                </span>
+                                            @else
+                                                <span class="text-muted small">
+                                                    {{ $disp->deadline->format('d M') }}
+                                                </span>
+                                            @endif
+                                        @else
+                                            <span class="text-muted small">-</span>
+                                        @endif
+                                    </td>
+                                    
+                                    <!-- Aksi -->
+                                    <td class="text-center">
+                                        <a href="{{ route('disposisi.show', $disp->id) }}" 
+                                           class="btn btn-sm btn-primary" 
+                                           title="Lihat & Proses">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
                             @endforeach
                         </tbody>
                     </table>
@@ -260,13 +261,13 @@
                 <i class="bi bi-inbox text-muted" style="font-size: 4rem;"></i>
                 <h5 class="mt-3 text-muted">Tidak ada disposisi masuk</h5>
                 <p class="text-muted mb-0">
-                    @if(request()->hasAny(array('search', 'prioritas', 'status', 'struktur', 'level_tujuan')))
+                    @if(request()->hasAny(array('search', 'prioritas', 'status', 'tipe_struktur', 'level_tujuan')))
                         Coba reset filter untuk melihat semua disposisi
                     @else
                         Disposisi akan muncul ketika ada surat yang diteruskan ke Anda
                     @endif
                 </p>
-                @if(request()->hasAny(array('search', 'prioritas', 'status', 'struktur', 'level_tujuan')))
+                @if(request()->hasAny(array('search', 'prioritas', 'status', 'tipe_struktur', 'level_tujuan')))
                     <a href="{{ route('disposisi.inbox') }}" class="btn btn-outline-primary mt-3">
                         <i class="bi bi-x-circle"></i> Reset Filter
                     </a>

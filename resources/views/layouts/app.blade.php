@@ -70,6 +70,22 @@
             </li>
             <!-- Divider -->
             <hr class="sidebar-divider my-0">
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('admin.cabangs') }}">
+                    <i class="bi bi-person-circle"></i>
+                    <span>Master Unit Kerja</span>
+                </a>
+            </li>
+            <!-- Divider -->
+            <hr class="sidebar-divider my-0">
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('admin.jabatans') }}">
+                    <i class="bi bi-person-circle"></i>
+                    <span>Master Jabatan</span>
+                </a>
+            </li>
+            <!-- Divider -->
+            <hr class="sidebar-divider my-0">
             <!-- Nav Item - Pages Collapse Menu -->
             <li class="nav-item">
                    <a class="nav-link" href="{{ route('letters.create') }}">
@@ -82,20 +98,42 @@
             <hr class="sidebar-divider my-0">
             <!-- Nav Item - Pages Collapse Menu -->
             <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTwo"
-                    aria-expanded="true" aria-controls="collapseTwo">
-                    <i class="fas fa-fw fa-cog"></i>
-                    <span>Data Surat</span>
-                </a>
-                <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
-                    <div class="bg-white py-2 collapse-inner rounded">
-                        <h6 class="collapse-header">Custom Components:</h6>
-                        <a class="collapse-item" href="{{ route('letters.index') }}">Semua Surat</a>
-                        <a class="collapse-item" href="{{ route('letters.masuk') }}">Surat Masuk</a>
-                        <a class="collapse-item" href="#">Surat Keluar</a>
-                    </div>
-                </div>
-            </li>
+    <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTwo"
+        aria-expanded="true" aria-controls="collapseTwo">
+        <i class="fas fa-fw fa-cog"></i>
+        <span>Data Surat</span>
+    </a>
+    <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
+        <div class="bg-white py-2 collapse-inner rounded">
+            <h6 class="collapse-header">Jenis Surat:</h6>
+            
+            <!-- ✅ SEMUA SURAT -->
+            <a class="collapse-item {{ request()->routeIs('letters.index') ? 'active' : '' }}" 
+               href="{{ route('letters.index') }}">
+                <i class="fas fa-fw fa-files me-1"></i>Semua Surat
+            </a>
+            
+            <!-- ✅ SURAT MASUK -->
+            <a class="collapse-item {{ request()->routeIs('letters.masuk') ? 'active' : '' }}" 
+               href="{{ route('letters.masuk') }}">
+                <i class="fas fa-fw fa-inbox me-1"></i>Surat Masuk
+            </a>
+            
+            <!-- ✅ SURAT KELUAR (FIX: tambah route) -->
+            <a class="collapse-item {{ request()->routeIs('letters.keluar') ? 'active' : '' }}" 
+               href="{{ route('letters.keluar') }}">
+                <i class="fas fa-fw fa-paper-plane me-1"></i>Surat Keluar
+            </a>
+            
+            <!-- ✅ NOTA DINAS (BARU) -->
+            <a class="collapse-item {{ request()->routeIs('letters.nota') ? 'active' : '' }}" 
+               href="{{ route('letters.nota') }}">
+                <i class="fas fa-fw fa-sticky-note me-1"></i>Nota Dinas
+            </a>
+            
+        </div>
+    </div>
+</li>
             <hr class="sidebar-divider my-0">
             <li class="nav-item">
                 <a class="nav-link" href="{{ route('disposisi.inbox') }}">

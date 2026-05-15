@@ -21,17 +21,36 @@ class LetterController extends Controller
     }
 
     public function create()
-    {
-        $templates = Template::where('is_active', true)
-            ->orderBy('jenis')
-            ->orderBy('nama_template')
-            ->get();
-        
-        // ✅ Filter user yang valid sesuai routing logic
-        $users = auth()->user()->getAvailableForwardTargets();
-
-        return view('letters.create', compact('templates', 'users'));
-    }
+{
+    $templates = Template::where('is_active', true)
+        ->orderBy('jenis')
+        ->orderBy('nama_template')
+        ->get();
+    
+    // ✅ FIX: Query cabangs TANPA is_active
+    $cabangs = \App\Models\Cabang::orderBy('tipe')
+        ->orderBy('nama_cabang')
+        ->get();
+    
+    // ✅ Load users untuk dropdown penerima disposisi
+    $users = auth()->user()->getAvailableForwardTargets()->load('cabang');
+    
+    // ✅ Format data untuk JavaScript
+    $usersData = $users->map(function($u) {
+        return [
+            'id' => $u->id,
+            'nama_lengkap' => $u->nama_lengkap,
+            'jabatan' => $u->jabatan,
+            'cabang_nama' => $u->cabang ? $u->cabang->nama_cabang : ($u->isPusat() ? 'Kantor Pusat' : ''),
+            'level_label' => $u->getLevelLabel(),
+            'struktur_label' => $u->getStrukturLabel(),
+        ];
+    });
+    
+    return view('letters.create', compact('templates', 'usersData', 'cabangs'));
+}
+    
+    
 
     public function store(Request $request)
 {
@@ -41,8 +60,9 @@ class LetterController extends Controller
     ]);
 
     // ✅ Validasi conditional: ke_user_id hanya wajib untuk template dengan disposisi
+     // ✅ CHECK: Apakah template ini butuh penerima?
     $template = Template::find($request->template_id);
-    $hasDisposisi = in_array(strtolower($template->kode_template ?? ''), ['sk-resmi', 'nd-int']);
+    $requiresRecipient = in_array(strtolower($template->kode_template), ['sk-resmi', 'nd-int']);
     
     $rules = [
         'template_id' => 'required|exists:templates,id',
@@ -53,10 +73,10 @@ class LetterController extends Controller
         'file_path'   => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240'
     ];
     
-    if ($hasDisposisi) {
+    // ✅ Hanya wajibkan ke_user_id jika template memerlukannya
+    if ($requiresRecipient) {
         $rules['ke_user_id'] = 'required|exists:users,id';
     }
-    
     $request->validate($rules);
 
     DB::beginTransaction();
@@ -69,7 +89,7 @@ class LetterController extends Controller
         }
 
         // 1. Simpan Header Surat
-        $letter = Letter::create([
+       $letter = Letter::create([
             'template_id'   => $request->template_id,
             'nomor_surat'   => $request->nomor_surat,
             'tanggal'       => $request->tanggal,
@@ -78,10 +98,10 @@ class LetterController extends Controller
             'status'        => 'menunggu_verifikasi',
             'current_level' => 1,
             'created_by'    => auth()->id(),
-            'ke_user_id'    => $request->filled('ke_user_id') ? $request->ke_user_id : null, // ✅ Conditional
+            // ✅ Hanya set ke_user_id jika ada
+            'ke_user_id'    => $request->filled('ke_user_id') ? $request->ke_user_id : null,
             'file_path'     => $filePath,
         ]);
-
         // 2. Simpan Dynamic Fields
         if ($request->has('fields') && is_array($request->fields)) {
             foreach ($request->fields as $fieldId => $value) {
@@ -160,6 +180,15 @@ class LetterController extends Controller
         if ($request->filled('jenis')) $query->where('jenis', $request->jenis);
         if ($request->filled('status')) $query->where('status', $request->status);
         if ($request->filled('from_date')) $query->whereDate('tanggal', '>=', $request->from_date);
+        // Setelah filter status, tambah:
+        if ($request->filled('struktur')) {
+            // 🔹 BELAJAR: Filter via relasi cabang->tipe
+            $query->whereHas('penerima', function($q) use ($request) {
+                $q->whereHas('cabang', function($c) use ($request) {
+                    $c->where('tipe', $request->struktur);
+                });
+            });
+        }
 
         $letters = $query->latest()->paginate(10);
 
@@ -317,6 +346,131 @@ class LetterController extends Controller
 
         return view('letters.index', compact('letters', 'stats'));
     }
+    // ==========================================
+// ✅ METHOD: SURAT KELUAR (jenis = 'keluar')
+// ==========================================
+public function keluar(Request $request)
+{
+    $user = auth()->user();
+    
+    // ✅ HARD FILTER: hanya surat keluar
+    $query = Letter::with(array('template', 'creator', 'penerima'))
+        ->where('jenis', 'keluar');
+
+    // ✅ FILTER LEVEL: staff/kasubag/kasie/kanit hanya lihat surat sendiri
+    $restrictedLevels = array('staff', 'kasubag', 'kasie', 'kanit');
+    if (in_array($user->level, $restrictedLevels)) {
+        $query->where('created_by', $user->id);
+    }
+
+    // 🔍 Filter Search
+    if ($request->filled('search')) {
+        $query->where(function($q) use ($request) {
+            $q->where('nomor_surat', 'like', '%'.$request->search.'%')
+              ->orWhere('perihal', 'like', '%'.$request->search.'%');
+        });
+    }
+
+    // 🔍 Filter Status & Tanggal
+    if ($request->filled('status')) $query->where('status', $request->status);
+    if ($request->filled('from_date')) $query->whereDate('tanggal', '>=', $request->from_date);
+
+    $letters = $query->latest()->paginate(10);
+
+    // ✅ Statistik khusus surat keluar
+    $statsQuery = Letter::where('jenis', 'keluar')
+        ->when(in_array($user->level, $restrictedLevels), function($q) use ($user) {
+            return $q->where('created_by', $user->id);
+        });
+    
+    $statsData = (clone $statsQuery)
+        ->selectRaw('
+            COUNT(*) as total,
+            COUNT(CASE WHEN status = "menunggu_verifikasi" THEN 1 END) as waiting,
+            COUNT(CASE WHEN status = "disetujui" THEN 1 END) as approved,
+            COUNT(CASE WHEN status = "ditolak" THEN 1 END) as rejected
+        ')->first();
+    
+    $stats = array(
+        'total'    => $statsData->total,
+        'waiting'  => $statsData->waiting,
+        'approved' => $statsData->approved,
+        'rejected' => $statsData->rejected,
+    );
+
+    // ✅ AJAX Response
+    if ($request->ajax() || $request->wantsJson()) {
+        return response()->json(array(
+            'tableHtml' => view('letters._table_rows', compact('letters'))->render(),
+            'pagination' => $letters->withQueryString()->links()->toHtml(),
+            'count' => $letters->count(),
+            'stats' => $stats
+        ));
+    }
+
+    return view('letters.index', compact('letters', 'stats'));
+}
+
+// ==========================================
+// ✅ METHOD: NOTA DINAS (jenis = 'nota')
+// ==========================================
+public function nota(Request $request)
+{
+    $user = auth()->user();
+    
+    // ✅ HARD FILTER: hanya nota dinas
+    $query = Letter::with(array('template', 'creator', 'penerima'))
+        ->where('jenis', 'nota');
+
+    $restrictedLevels = array('staff', 'kasubag', 'kasie', 'kanit');
+    if (in_array($user->level, $restrictedLevels)) {
+        $query->where('created_by', $user->id);
+    }
+
+    if ($request->filled('search')) {
+        $query->where(function($q) use ($request) {
+            $q->where('nomor_surat', 'like', '%'.$request->search.'%')
+              ->orWhere('perihal', 'like', '%'.$request->search.'%');
+        });
+    }
+    if ($request->filled('status')) $query->where('status', $request->status);
+    if ($request->filled('from_date')) $query->whereDate('tanggal', '>=', $request->from_date);
+
+    $letters = $query->latest()->paginate(10);
+
+    // Statistik khusus nota dinas
+    $statsQuery = Letter::where('jenis', 'nota')
+        ->when(in_array($user->level, $restrictedLevels), function($q) use ($user) {
+            return $q->where('created_by', $user->id);
+        });
+    
+    $statsData = (clone $statsQuery)
+        ->selectRaw('
+            COUNT(*) as total,
+            COUNT(CASE WHEN status = "menunggu_verifikasi" THEN 1 END) as waiting,
+            COUNT(CASE WHEN status = "disetujui" THEN 1 END) as approved,
+            COUNT(CASE WHEN status = "ditolak" THEN 1 END) as rejected
+        ')->first();
+    
+    $stats = array(
+        'total'    => $statsData->total,
+        'waiting'  => $statsData->waiting,
+        'approved' => $statsData->approved,
+        'rejected' => $statsData->rejected,
+    );
+
+    if ($request->ajax() || $request->wantsJson()) {
+        return response()->json(array(
+            'tableHtml' => view('letters._table_rows', compact('letters'))->render(),
+            'pagination' => $letters->withQueryString()->links()->toHtml(),
+            'count' => $letters->count(),
+            'stats' => $stats
+        ));
+    }
+
+    return view('letters.index', compact('letters', 'stats'));
+}
+    
 
     public function downloadPdf($id)
     {

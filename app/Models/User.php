@@ -10,16 +10,17 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
+    // ✅ Tambah cabang_id & jabatan_id agar bisa di-mass-assign
     protected $fillable = [
         'username', 'password_hash', 'nama_lengkap', 'email', 'jabatan',
         'level', 'struktur', 'unit_kerja', 'status', 'signature',
-        'nik', 'no_hp', 'foto_profile',
+        'nik', 'no_hp', 'foto_profile', 'cabang_id', 'jabatan_id',
     ];
 
     protected $hidden = ['password_hash'];
 
-    public function getAuthPassword() { 
-        return $this->password_hash; 
+    public function getAuthPassword() {
+        return $this->password_hash;
     }
 
     public function disposisiMasuk() { 
@@ -30,62 +31,85 @@ class User extends Authenticatable
         return $this->hasMany(Disposisi::class, 'dari_user_id'); 
     }
 
-    // 🔹 HELPER LEVEL (UPDATED - terpisah, PHP 7.4 safe)
-    public function isAdmin(): bool         { return $this->level === 'admin'; }
-    public function isDirut(): bool         { return $this->level === 'dirut'; }
-    public function isKabag(): bool         { return $this->level === 'kabag'; }
-    public function isKacab(): bool         { return $this->level === 'kacab'; }
-    public function isKasubag(): bool       { return $this->level === 'kasubag'; }
-    public function isKasie(): bool         { return $this->level === 'kasie'; }
-    public function isStaff(): bool         { return $this->level === 'staff'; }
+    // 🔗 RELASI: User "milik" satu Cabang & satu Jabatan
+    public function cabang() { return $this->belongsTo(Cabang::class); }
+    public function jabatan(){ return $this->belongsTo(Jabatan::class); }
+
+    // 🔹 HELPER LEVEL (Tetap pakai enum `level` untuk performa)
+    public function isAdmin(): bool   { return $this->level === 'admin'; }
+    public function isDirut(): bool   { return $this->level === 'dirut'; }
+    public function isKabag(): bool   { return $this->level === 'kabag'; }
+    public function isKacab(): bool   { return $this->level === 'kacab'; }
+    public function isKasubag(): bool { return $this->level === 'kasubag'; }
+    public function isKasie(): bool   { return $this->level === 'kasie'; }
+    public function isStaff(): bool   { return $this->level === 'staff'; }
 
     public function isLevelAtLeast(int $minLevel): bool {
         return ($this->level_urutan ?? 1) >= $minLevel;
     }
 
-    public function canVerify(): bool { 
-        return $this->isAdmin() || $this->isLevelAtLeast(2); 
+    public function canVerify(): bool  { return $this->isAdmin() || $this->isLevelAtLeast(2); }
+    public function canDispose(): bool { return $this->isAdmin() || $this->isLevelAtLeast(3); }
+    public function canReturnToStaff(): bool { return $this->isKasubag() || $this->isKasie(); }
+
+    // 🔹 CEK STRUKTUR: Prioritaskan relasi, fallback ke kolom lama
+    public function isPusat(): bool {
+        if ($this->cabang && $this->cabang->tipe === 'pusat') return true;
+        return $this->struktur === 'pusat';
     }
 
-    public function canDispose(): bool { 
-        return $this->isAdmin() || $this->isLevelAtLeast(3); 
+    public function isCabang(): bool {
+        if ($this->cabang && $this->cabang->tipe === 'cabang') return true;
+        return $this->struktur === 'cabang';
     }
 
-    public function canReturnToStaff(): bool { 
-        return $this->isKasubag() || $this->isKasie(); 
+    public function isUnit(): bool {
+        if ($this->cabang && $this->cabang->tipe === 'unit') return true;
+        return false;
     }
 
-    public function isPusat(): bool  { return $this->struktur === 'pusat'; }
-    public function isCabang(): bool { return $this->struktur === 'cabang'; }
+    // 🔹 ACCESSOR: Agar view/form lama TIDAK ERROR
+    public function getStrukturAttribute() {
+        return $this->cabang ? $this->cabang->tipe : ($this->attributes['struktur'] ?? 'pusat');
+    }
 
-    // 🔹 LOGIKA ROUTING (PHP 7.4 safe - no arrow functions)
+    public function getUnitKerjaAttribute() {
+        // Jika relasi cabang ada, ambil nama cabang sebagai unit kerja default
+        if ($this->cabang && $this->cabang->nama_cabang) {
+            return strtolower(preg_replace('/[^a-zA-Z]/', '', $this->cabang->nama_cabang));
+        }
+        return $this->attributes['unit_kerja'] ?? 'umum';
+    }
+
+    // 🔹 LOGIKA ROUTING: Ganti string comparison → ID comparison
     public function canForwardTo(User $target): bool
     {
         if ($this->isAdmin() || $this->isDirut()) return true;
 
         if ($this->isPusat()) {
             if ($this->isStaff()) {
-                return $this->unit_kerja === $target->unit_kerja
+                return $this->cabang_id === $target->cabang_id
                     && in_array($target->level, array('kasubag', 'kabag'))
                     && $target->level_urutan > $this->level_urutan;
             }
             if ($this->isKasubag()) {
-                return $this->unit_kerja === $target->unit_kerja
+                return $this->cabang_id === $target->cabang_id
                     && in_array($target->level, array('kabag', 'staff'));
             }
             if ($this->isKabag()) {
                 if ($target->isDirut() || $target->isKabag()) return true;
-                return $this->unit_kerja === $target->unit_kerja && $target->isKasubag();
+                return $this->cabang_id === $target->cabang_id && $target->isKasubag();
             }
-        }
-
-        elseif ($this->isCabang()) {
+        } 
+        elseif ($this->isCabang() || $this->isUnit()) {
             if ($this->isStaff()) {
-                return in_array($target->level, array('kasie', 'kacab'))
+                return $this->cabang_id === $target->cabang_id
+                    && in_array($target->level, array('kasie', 'kacab'))
                     && $target->level_urutan > $this->level_urutan;
             }
             if ($this->isKasie()) {
-                return in_array($target->level, array('kacab', 'staff'));
+                return $this->cabang_id === $target->cabang_id
+                    && in_array($target->level, array('kacab', 'staff'));
             }
             if ($this->isKacab()) {
                 if ($target->isDirut() || $target->isKacab()) return true;
@@ -96,122 +120,74 @@ class User extends Authenticatable
         return false;
     }
 
-    // 🔹 Get Available Forward Targets (PHP 7.4 safe)
-    /** Ambil list user yang VALID untuk dipilih di dropdown forward */
-public function getAvailableForwardTargets()
-{
-    $query = User::where('status', 'aktif')->where('id', '!=', $this->id);
+    // 🔹 GET AVAILABLE FORWARD TARGETS
+    public function getAvailableForwardTargets()
+    {
+        $query = User::where('status', 'aktif')->where('id', '!=', $this->id);
 
-    // ✅ ADMIN & DIRUT: Lihat semua (tanpa filter)
-    if ($this->isAdmin() || $this->isDirut()) {
-        return $query->orderByRaw("
-            CASE level 
-                WHEN 'admin' THEN 7 
-                WHEN 'dirut' THEN 6 
-                WHEN 'kabag' THEN 5 
-                WHEN 'kacab' THEN 5 
-                WHEN 'kasubag' THEN 3 
-                WHEN 'kasie' THEN 3 
-                WHEN 'staff' THEN 1 
-                ELSE 0 
-            END DESC
-        ")->orderBy('nama_lengkap')->get();
+        if ($this->isAdmin() || $this->isDirut()) {
+            return $query->orderByRaw("
+                CASE level WHEN 'admin' THEN 7 WHEN 'dirut' THEN 6 WHEN 'kabag' THEN 5 
+                WHEN 'kacab' THEN 5 WHEN 'kasubag' THEN 3 WHEN 'kasie' THEN 3 WHEN 'staff' THEN 1 ELSE 0 END DESC
+            ")->orderBy('nama_lengkap')->get();
+        }
+
+        if ($this->isPusat()) {
+            if ($this->isStaff()) {
+                $query->whereIn('level', array('kasubag', 'kabag'))
+                      ->where('cabang_id', $this->cabang_id)
+                      ->orderByRaw("CASE level WHEN 'kabag' THEN 5 WHEN 'kasubag' THEN 3 ELSE 0 END DESC");
+            } elseif ($this->isKasubag()) {
+                $query->where('level', 'kabag')->where('cabang_id', $this->cabang_id);
+            } elseif ($this->isKabag()) {
+                $query->where(function ($q) {
+                    $q->whereIn('level', array('dirut', 'kabag'))
+                      ->orWhere(function ($sub) {
+                          $sub->where('level', 'kasubag')->where('cabang_id', $this->cabang_id);
+                      });
+                });
+            }
+        } 
+        elseif ($this->isCabang() || $this->isUnit()) {
+            if ($this->isStaff()) {
+                $query->whereIn('level', array('kasie', 'kacab'))
+                      ->where('cabang_id', $this->cabang_id)
+                      ->orderByRaw("CASE level WHEN 'kacab' THEN 5 WHEN 'kasie' THEN 3 ELSE 0 END DESC");
+            } elseif ($this->isKasie()) {
+                $query->where('level', 'kacab')->where('cabang_id', $this->cabang_id);
+            } elseif ($this->isKacab()) {
+                $query->where(function ($q) {
+                    $q->whereIn('level', array('dirut', 'kacab'))->orWhere('level', 'kasie');
+                });
+            }
+        }
+
+        return $query->orderBy('nama_lengkap')->get();
     }
 
-    // ✅ PUSAT
-    if ($this->isPusat()) {
-        if ($this->isStaff()) {
-            $query->whereIn('level', array('kasubag', 'kabag'))
-                  ->where('unit_kerja', $this->unit_kerja)
-                  ->orderByRaw("
-                    CASE level 
-                        WHEN 'kabag' THEN 5 WHEN 'kasubag' THEN 3 ELSE 0 
-                    END DESC
-                  ");
-        }
-        elseif ($this->isKasubag()) {
-            $query->where('level', 'kabag')
-                  ->where('unit_kerja', $this->unit_kerja);
-        }
-        elseif ($this->isKabag()) {
-            $query->where(function ($q) {
-                $q->whereIn('level', array('dirut', 'kabag'))
-                  ->orWhere(function ($sub) {
-                      $sub->where('level', 'kasubag')
-                          ->where('unit_kerja', $this->unit_kerja);
-                  });
-            });
-        }
-    }
-
-    // ✅ CABANG
-    elseif ($this->isCabang()) {
-        if ($this->isStaff()) {
-            $query->whereIn('level', array('kasie', 'kacab'))
-                  ->orderByRaw("
-                    CASE level 
-                        WHEN 'kacab' THEN 5 WHEN 'kasie' THEN 3 ELSE 0 
-                    END DESC
-                  ");
-        }
-        elseif ($this->isKasie()) {
-            $query->where('level', 'kacab');
-        }
-        elseif ($this->isKacab()) {
-            $query->where(function ($q) {
-                $q->whereIn('level', array('dirut', 'kacab'))
-                  ->orWhere('level', 'kasie');
-            });
-        }
-    }
-
-    return $query->orderBy('nama_lengkap')->get();
-}
-
-    // 🔹 UI Helpers (PHP 7.4 compatible - NO match(), NO arrow functions)
+    // 🔹 UI HELPERS
     public function getStrukturLabel() {
-        if ($this->struktur === 'pusat') {
-            return 'Pusat';
-        } elseif ($this->struktur === 'cabang') {
-            return 'Cabang';
-        } elseif ($this->struktur === 'unit') {
-            return 'Unit';
-        }
-        return ucfirst($this->struktur);
+        if ($this->isPusat()) return 'Pusat';
+        if ($this->isCabang()) return 'Cabang';
+        if ($this->isUnit()) return 'Unit';
+        return ucfirst($this->struktur ?? 'pusat');
     }
 
     public function getLevelLabel() {
         $labels = array(
-            'admin'       => 'Administrator',
-            'dirut'       => 'Direktur Utama',
-            'kabag'       => 'Kepala Bagian',
-            'kacab'       => 'Kepala Cabang',
-            'kasubag'     => 'Kepala Sub Bagian',
-            'kasie'       => 'Kepala Seksi',
-            'staff'       => 'Staff',
+            'admin' => 'Administrator', 'dirut' => 'Direktur Utama',
+            'kabag' => 'Kepala Bagian', 'kacab' => 'Kepala Cabang',
+            'kasubag' => 'Kepala Sub Bagian', 'kasie' => 'Kepala Seksi', 'staff' => 'Staff',
         );
-        if (isset($labels[$this->level])) {
-            return $labels[$this->level];
-        }
-        return ucfirst(str_replace('_', ' ', $this->level));
+        return isset($labels[$this->level]) ? $labels[$this->level] : ucfirst(str_replace('_', ' ', $this->level));
     }
-    // ✅ ACCESSOR: Urutan level untuk sorting
-public function getUrutanAttribute()
-{
-    $mapping = [
-        'admin'    => 7,
-        'dirut'    => 6,
-        'kabag'    => 5,
-        'kacab'    => 5,
-        'kanit'    => 4,
-        'kasubag'  => 3,
-        'kasie'    => 3,
-        'staff'    => 1,
-    ];
 
-    return $mapping[$this->level] ?? 0;
-}
-    
-    
-    
+    public function getUrutanAttribute() {
+        $mapping = ['admin'=>7, 'dirut'=>6, 'kabag'=>5, 'kacab'=>5, 'kanit'=>4, 'kasubag'=>3, 'kasie'=>3, 'staff'=>1];
+        return $mapping[$this->level] ?? 0;
+    }
+
+    public function getCabangLabelAttribute() {
+        return $this->cabang ? $this->cabang->nama_cabang : ($this->isPusat() ? 'Kantor Pusat' : 'Cabang');
+    }
 }

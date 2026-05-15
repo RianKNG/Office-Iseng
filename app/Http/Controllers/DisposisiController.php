@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Models\Disposisi;
@@ -14,30 +13,46 @@ use Illuminate\Support\Facades\Log;
 
 class DisposisiController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
+    public function __construct() { $this->middleware('auth'); }
 
     public function inbox()
-    {
-        $user = auth()->user();
-        
-        $query = Disposisi::with(array('letter', 'dari', 'ke'));
-        
-        // ✅ ADMIN: Lihat SEMUA disposisi masuk
-        if (!$user->isAdmin()) {
-            $query->where('ke_user_id', auth()->id());
-        }
-        
-        $disposisi = $query->orderBy('created_at', 'desc')->paginate(10);
-        
-        return view('disposisi.inbox', compact('disposisi'));
+{
+    $user = auth()->user();
+    
+    // 🔹 BELAJAR: Load relasi agar tidak N+1 query
+    $query = Disposisi::with(['letter', 'dari.cabang', 'ke.cabang']);
+
+    // 🔹 BELAJAR: Non-admin hanya lihat disposisi yang ditujukan ke dirinya
+    if (!$user->isAdmin()) {
+        $query->where('ke_user_id', $user->id);
     }
+
+    // 🔹 BELAJAR: Optional filter via request (jika ingin tambah filter di inbox)
+    if (request()->filled('prioritas')) {
+        $query->where('prioritas', request('prioritas'));
+    }
+    
+    if (request()->filled('status')) {
+        $query->where('status', request('status'));
+    }
+
+    // 🔹 BELAJAR: Filter via relasi cabang->tipe (Pusat/Cabang/Unit)
+    if (request()->filled('tipe_struktur')) {
+        $query->whereHas('dari', function($q) {
+            $q->whereHas('cabang', function($c) {
+                $c->where('tipe', request('tipe_struktur')); // 'pusat', 'cabang', atau 'unit'
+            });
+        });
+    }
+
+    $disposisi = $query->orderBy('created_at', 'desc')->paginate(10);
+    
+    return view('disposisi.inbox', compact('disposisi'));
+}
 
     public function store(Request $request)
     {
-        $request->validate(array(
+        $request->validate([
             'template_id' => 'required|exists:templates,id',
             'nomor_surat' => 'required|string|max:100',
             'tanggal'     => 'required|date',
@@ -45,16 +60,14 @@ class DisposisiController extends Controller
             'ke_user_id'  => 'required|exists:users,id',
             'fields.*'    => 'nullable|string|max:1000',
             'file_path'   => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240'
-        ));
+        ]);
 
         DB::beginTransaction();
         try {
             $template = Template::findOrFail($request->template_id);
-            $filePath = $request->hasFile('file_path') 
-                ? $request->file('file_path')->store('letters', 'public') 
-                : null;
+            $filePath = $request->hasFile('file_path') ? $request->file('file_path')->store('letters', 'public') : null;
 
-            $letter = Letter::create(array(
+            $letter = Letter::create([
                 'template_id'   => $request->template_id,
                 'nomor_surat'   => $request->nomor_surat,
                 'tanggal'       => $request->tanggal,
@@ -63,42 +76,37 @@ class DisposisiController extends Controller
                 'status'        => 'menunggu_verifikasi',
                 'current_level' => 1,
                 'created_by'    => auth()->id(),
-                'ke_user_id'    => $request->ke_user_id, // ✅ Simpan penerima
+                'ke_user_id'    => $request->ke_user_id,
                 'file_path'     => $filePath,
-            ));
+            ]);
 
             if ($request->has('fields') && is_array($request->fields)) {
                 foreach ($request->fields as $fieldId => $value) {
                     if ($value !== null && $value !== '') {
-                        LetterValue::create(array(
-                            'letter_id' => $letter->id,
-                            'field_id'  => $fieldId,
-                            'nilai'     => is_string($value) ? trim($value) : $value
-                        ));
+                        LetterValue::create(['letter_id' => $letter->id, 'field_id' => $fieldId, 'nilai' => trim($value)]);
                     }
                 }
             }
 
-            // ✅ VALIDASI ROUTING SAAT CREATE SURAT BARU
+            // 🔹 BELAJAR ALUR: Validasi routing SERAHKAN ke Model User. 
+            // Model sudah paham Pusat/Cabang/Unit + Level hierarchy.
             $sender = auth()->user();
             $target = User::find($request->ke_user_id);
             if ($target && !$sender->canForwardTo($target)) {
                 DB::rollBack();
-                return back()->withInput()->with('error', 
-                    '❌ Anda tidak dapat meneruskan surat ke user ini (beda struktur/unit).');
+                return back()->withInput()->with('error', '❌ Routing tidak diizinkan. Pastikan tujuan berada dalam struktur/unit yang sesuai.');
             }
 
-            Disposisi::create(array(
-                'letter_id'      => $letter->id,
-                'dari_user_id'   => auth()->id(),
-                'ke_user_id'     => $request->ke_user_id,
-                'instruksi'      => 'Surat baru - mohon ditindaklanjuti',
-                'prioritas'      => 'biasa',
-                'status'         => 'pending',
-                'deadline'       => now()->addDays(3),
-            ));
+            Disposisi::create([
+                'letter_id'    => $letter->id,
+                'dari_user_id' => auth()->id(),
+                'ke_user_id'   => $request->ke_user_id,
+                'instruksi'    => 'Surat baru - mohon ditindaklanjuti',
+                'prioritas'    => 'biasa',
+                'status'       => 'pending',
+                'deadline'     => now()->addDays(3),
+            ]);
 
-            $this->syncLetterStatus($letter->id);
             DB::commit();
             return redirect()->route('letters.index')->with('success', '✅ Surat berhasil dibuat dan diteruskan.');
         } catch (\Exception $e) {
@@ -110,126 +118,84 @@ class DisposisiController extends Controller
 
     public function process(Request $request, $id)
     {
-        $request->validate(array(
+        $request->validate([
             'status'     => 'nullable|in:pending,dibaca,diproses,diteruskan,dikembalikan,selesai',
             'action'     => 'required|in:approve,forward,return,reject',
             'instruksi'  => 'nullable|string|max:500',
             'ke_user_id' => 'nullable|exists:users,id',
             'prioritas'  => 'nullable|in:biasa,penting,segera,rahasia',
-        ));
+        ]);
 
         $disposisi = Disposisi::with('letter')->findOrFail($id);
         $user      = auth()->user();
 
-        // 🔒 VALIDASI ROUTING BERDASARKAN STRUKTUR & UNIT (UPDATED)
+        // 🔹 BELAJAR ALUR: Validasi routing dipusatkan di User::canForwardTo()
+        // Tidak perlu switch-case manual lagi. Ini mencegah logic drift.
         if ($request->filled('ke_user_id')) {
             $targetUser = User::find($request->ke_user_id);
-            
             if ($targetUser && !$user->canForwardTo($targetUser)) {
-                // Menggunakan switch untuk kompatibilitas PHP 7.x
-                switch ($user->level) {
-                    case 'staff':
-                        $msg = '❌ Staff hanya bisa meneruskan ke atasan langsung di unit & struktur yang sama.';
-                        break;
-                    case 'kasubag':
-                    case 'kasie':
-                    case 'kanit':
-                        $msg = '❌ Kasubag/Kasie/Kanit hanya bisa meneruskan dalam unit & struktur yang sama.';
-                        break;
-                    case 'kabag':
-                        $msg = '❌ Kabag (Pusat) hanya bisa meneruskan lintas unit (struktur sama) atau ke Direktur.';
-                        break;
-                    case 'kacab':
-                        $msg = '❌ Kacab (Cabang) hanya bisa meneruskan ke Dirut, sesama Kacab, atau Kasie bawahan.';
-                        break;
-                    default:
-                        $msg = '❌ Routing tidak diizinkan.';
-                }
-                
-                return redirect()->back()->with('error', $msg);
+                return redirect()->back()->with('error', '❌ Anda tidak dapat meneruskan ke user ini (melanggar aturan struktur/level).');
             }
         }
-         
-        // ==========================================
-        // 🟢 DEFINISI HAK AKSES (UPDATED - level terpisah)
-        // ==========================================
-        // Kabag (Pusat), Kacab (Cabang), Dirut = Leader (Bisa Disposisi)
-        $isLeader = in_array($user->level, array('kabag', 'kacab', 'dirut', 'admin'));
-        
-        // Kasubag (Pusat), Kasie (Cabang), Kanit (Unit) ke atas = Verifier
-        $isVerifier = in_array($user->level, array('kasubag', 'kasie', 'kanit', 'kabag', 'kacab', 'dirut', 'admin'));
 
-        // ==========================================
-        // 🟢 GUARD RULES (UPDATED)
-        // ==========================================
-        // Hanya Kasubag/Kasie/Kanit yang boleh mengembalikan ke Staff
-        if ($request->action === 'return' && !in_array($user->level, array('kasubag', 'kasie', 'kanit'))) {
+        $isLeader   = in_array($user->level, ['kabag', 'kacab', 'dirut', 'admin']);
+        $isVerifier = in_array($user->level, ['kasubag', 'kasie', 'kanit', 'kabag', 'kacab', 'dirut', 'admin']);
+
+        if ($request->action === 'return' && !in_array($user->level, ['kasubag', 'kasie', 'kanit'])) {
             return redirect()->back()->with('error', '❌ Hanya Kasubag/Kasie/Kanit yang boleh mengembalikan ke Staff.');
         }
-
-        // Forward boleh dilakukan semua level verifikator+, tapi instruksi disposisi resmi hanya Leader
         if ($request->action === 'forward' && !$isVerifier) {
             return redirect()->back()->with('error', '❌ Anda tidak memiliki wewenang untuk meneruskan disposisi.');
         }
 
-        // ==========================================
-        // 🟢 TENTUKAN STATUS TARGET
-        // ==========================================
-        if ($request->action === 'approve' || $request->action === 'forward') {
-            $targetStatus = 'diteruskan';
-        } elseif ($request->action === 'return') {
-            $targetStatus = 'dikembalikan';
-        } elseif ($request->action === 'reject') {
-            $targetStatus = 'selesai';
-        } else {
-            $targetStatus = 'diproses';
+        switch ($request->action) {
+            case 'approve':
+            case 'forward':
+                $targetStatus = 'diteruskan';
+                break;
+            case 'return':
+                $targetStatus = 'dikembalikan';
+                break;
+            case 'reject':
+                $targetStatus = 'selesai';
+                break;
+            default:
+                $targetStatus = 'diproses';
+                break;
         }
 
         DB::beginTransaction();
         try {
-            // 1. Update disposisi aktif
-            $updateData = array('status' => $targetStatus, 'updated_at' => now());
-            
-            // Simpan Instruksi (Hanya Leader yang instruksinya jadi Disposisi Resmi)
+            $updateData = ['status' => $targetStatus, 'updated_at' => now()];
             if ($request->filled('instruksi')) {
-                if ($isLeader) {
-                    $updateData['instruksi'] = $request->instruksi; 
-                } else {
-                    // Kasubag/Kasie forward pakai instruksi -> simpan sebagai catatan verifikator
-                    $updateData['instruksi'] = '[Verifikator: ' . $user->nama_lengkap . '] ' . $request->instruksi;
-                }
+                $updateData['instruksi'] = $isLeader 
+                    ? $request->instruksi 
+                    : '[Verifikator: ' . $user->nama_lengkap . '] ' . $request->instruksi;
             }
-
             $disposisi->update($updateData);
 
-            // 2. ROUTING CHILD DISPOSISI
-            if (in_array($request->action, array('forward', 'return')) && $request->filled('ke_user_id')) {
+            if (in_array($request->action, ['forward', 'return']) && $request->filled('ke_user_id')) {
                 $nextUser = User::findOrFail($request->ke_user_id);
-                
-                Disposisi::create(array(
+                Disposisi::create([
                     'letter_id'    => $disposisi->letter_id,
                     'parent_id'    => $disposisi->id,
                     'dari_user_id' => $user->id,
                     'ke_user_id'   => $nextUser->id,
-                    'instruksi'    => $request->action === 'return' 
-                        ? 'Revisi: ' . ($request->instruksi ?: 'Perbaiki sesuai ketentuan')
-                        : ($request->instruksi ?: 'Mohon ditindaklanjuti'),
+                    'instruksi'    => $request->action === 'return' ? 'Revisi: ' . ($request->instruksi ?: 'Perbaiki sesuai ketentuan') : ($request->instruksi ?: 'Mohon ditindaklanjuti'),
                     'status'       => $request->action === 'return' ? 'draft' : 'pending',
                     'prioritas'    => $request->prioritas ?: 'biasa',
                     'deadline'     => $request->action !== 'return' ? ($request->deadline ?: now()->addDays(3)) : null,
-                ));
+                ]);
             }
 
-            // 3. SINKRONISASI STATUS SURAT
             if ($request->action === 'reject') {
-                $disposisi->letter->update(array('status' => 'selesai')); // Tolak Final
+                $disposisi->letter->update(['status' => 'selesai']);
             } elseif ($targetStatus === 'dikembalikan') {
-                $disposisi->letter->update(array('status' => 'diproses')); // Kembali ke Staff (Open Loop)
+                $disposisi->letter->update(['status' => 'diproses']);
             } else {
                 $this->syncLetterStatus($disposisi->letter_id);
             }
 
-            // 4. NOTIFIKASI
             if ($request->filled('ke_user_id') && $request->action !== 'reject') {
                 app(NotifikasiService::class)->kirim(
                     User::find($request->ke_user_id),
@@ -241,11 +207,10 @@ class DisposisiController extends Controller
 
             DB::commit();
             return redirect()->back()->with('success', '✅ Proses berhasil');
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Process Error: ' . $e->getMessage());
-            return redirect()->back()->with('error', '❌ Gagal: ' . $e->getMessage());
+            return redirect()->back()->with('error', ' Gagal: ' . $e->getMessage());
         }
     }
 
@@ -328,81 +293,72 @@ class DisposisiController extends Controller
     
     public function show($id)
     {
-        $disposisi = Disposisi::with(array(
-            'letter.template',
-            'letter.values.field',
-            'letter.creator',
-            'letter.approver',
-            'letter.penerima',  // ✅ Load relasi penerima
-            'dari',
-            'ke',
-            'parent.dari',
-            'parent.ke'
-        ))->findOrFail($id);
-
+        $disposisi = Disposisi::with(['letter.template','letter.values.field','letter.creator','letter.approver','letter.penerima','dari','ke','parent.dari','parent.ke'])->findOrFail($id);
         $user = auth()->user();
 
-        // ✅ ADMIN: Boleh akses disposisi siapa saja
-        if (!$user->isAdmin()) {
-            if ($disposisi->ke_user_id != $user->id && $disposisi->dari_user_id != $user->id) {
-                abort(403, 'Anda tidak memiliki akses ke disposisi ini');
-            }
+        if (!$user->isAdmin() && $disposisi->ke_user_id != $user->id && $disposisi->dari_user_id != $user->id) {
+            abort(403, 'Anda tidak memiliki akses ke disposisi ini');
         }
 
-        // Update status jadi 'dibaca' jika masih pending dan user adalah penerima
         if ($disposisi->status == 'pending' && $disposisi->ke_user_id == $user->id) {
-            $disposisi->update(array('status' => 'dibaca'));
+            $disposisi->update(['status' => 'dibaca']);
         }
 
-        // ✅ Dropdown forward: pakai method dari Model yang sudah fix
         $availableUsers = $user->getAvailableForwardTargets();
-
         return view('disposisi.show', compact('disposisi', 'availableUsers'));
     }
 
-    // Tambah method ini di DisposisiController
     public function all(Request $request)
-    {
-        // ✅ Hanya admin yang boleh akses
-        if (!auth()->user()->isAdmin()) {
-            abort(403, 'Akses ditolak');
-        }
-
-        $query = Disposisi::with(array('letter', 'dari', 'ke'));
-
-        // Filter opsional (PHP 7.4 compatible)
-        if ($request->has('struktur')) {
-            $query->whereHas('dari', function($q) use ($request) {
-                $q->where('struktur', $request->struktur);
-            });
-        }
-        if ($request->has('unit_kerja')) {
-            $query->whereHas('dari', function($q) use ($request) {
-                $q->where('unit_kerja', $request->unit_kerja);
-            });
-        }
-        if ($request->has('search')) {
-            $query->whereHas('letter', function($q) use ($request) {
-                $q->where('nomor_surat', 'like', '%'.$request->search.'%')
-                  ->orWhere('perihal', 'like', '%'.$request->search.'%');
-            });
-        }
-
-        // ✅ Filter Kabag vs Kacab
-        if ($request->has('level')) {
-            if ($request->level === 'kabag') {
-                $query->toKabag(); // Scope dari Disposisi model
-            } elseif ($request->level === 'kacab') {
-                $query->toKacab();
-            }
-        }
-
-        // ✅ Filter lintas struktur
-        if ($request->has('lintas') && $request->lintas === '1') {
-            $query->crossStructure();
-        }
-
-        $disposisis = $query->latest()->paginate(20);
-        return view('disposisi.all', compact('disposisis'));
+{
+    // 🔹 BELAJAR: Hanya admin yang boleh akses halaman ini
+    if (!auth()->user()->isAdmin()) {
+        abort(403, 'Akses ditolak');
     }
+
+    $query = Disposisi::with(['letter', 'dari.cabang', 'ke.cabang']);
+
+    // 🔹 BELAJAR: Filter via relasi cabang->tipe (Pusat/Cabang/Unit)
+    if ($request->filled('tipe_struktur')) {
+        $query->whereHas('dari', function($q) use ($request) {
+            $q->whereHas('cabang', function($c) use ($request) {
+                $c->where('tipe', $request->tipe_struktur);
+            });
+        });
+    }
+
+    // 🔹 BELAJAR: Search nomor surat / perihal via relasi letter
+    if ($request->filled('search')) {
+        $query->whereHas('letter', function($q) use ($request) {
+            $q->where('nomor_surat', 'like', '%'.$request->search.'%')
+              ->orWhere('perihal', 'like', '%'.$request->search.'%');
+        });
+    }
+
+    // 🔹 BELAJAR: Filter level tujuan (Kabag/Kacab) - pastikan scope di Disposisi model sudah update
+    if ($request->filled('level')) {
+        if ($request->level === 'kabag') {
+            $query->toKabag(); // Scope: where level='kabag' AND cabang->tipe='pusat'
+        } elseif ($request->level === 'kacab') {
+            $query->toKacab(); // Scope: where level='kacab' AND cabang->tipe='cabang'
+        }
+    }
+
+    // 🔹 BELAJAR: Filter lintas struktur (Pusat ↔ Cabang)
+    if ($request->filled('lintas') && $request->lintas === '1') {
+        $query->crossStructure();
+    }
+
+    // 🔹 BELAJAR: Filter status & prioritas (opsional)
+    if ($request->filled('status')) {
+        $query->where('status', $request->status);
+    }
+    
+    if ($request->filled('prioritas')) {
+        $query->where('prioritas', $request->prioritas);
+    }
+
+    $disposisis = $query->latest()->paginate(20);
+    
+    return view('disposisi.all', compact('disposisis'));
+}
 }

@@ -1,19 +1,18 @@
 @php $no = ($letters->currentPage() - 1) * $letters->perPage() + 1; @endphp
-
 @foreach($letters as $letter)
 <tr>
     <td>{{ $no++ }}</td>
     <td>
-        <strong>{{ $letter->nomor_surat }}</strong><br>
+        <strong>{{ $letter->nomor_surat }}</strong> <br>
         <small class="text-muted">{{ $letter->template->nama_template ?? '-' }}</small>
     </td>
     <td>
         @php
-            $jenisBadge = [
-                'masuk' => 'bg-info',
-                'keluar' => 'bg-success',
-                'nota' => 'bg-warning text-dark'
-            ];
+        $jenisBadge = [
+            'masuk' => 'bg-info',
+            'keluar' => 'bg-success', 
+            'nota' => 'bg-warning text-dark'
+        ];
         @endphp
         <span class="badge {{ $jenisBadge[$letter->jenis] ?? 'bg-secondary' }}">
             {{ ucfirst($letter->jenis) }}
@@ -22,21 +21,34 @@
     <td>{{ Str::limit($letter->perihal, 30) }}</td>
     <td>{{ $letter->tanggal ? $letter->tanggal->format('d/m/Y') : '-' }}</td>
     
-    {{-- ✅ KOLOM PENERIMA (baru) --}}
+    <!-- ✅ KOLOM PENERIMA (Updated dengan relasi) -->
     <td>
         @if($letter->penerima)
             <div class="d-flex align-items-center">
                 <i class="bi bi-person me-2 text-muted"></i>
                 <div>
                     <div class="fw-bold">{{ $letter->penerima->nama_lengkap }}</div>
-                    <small class="text-muted">{{ $letter->penerima->jabatan }}</small>
+                    <!-- 🔹 BELAJAR: Pakai accessor agar otomatis fallback -->
+                    <small class="text-muted">
+                        {{ $letter->penerima->jabatan }} 
+                        {{-- Jika relasi jabatan ada, akan otomatis tampil dari tabel master --}}
+                    </small>
+                    <!-- 🔹 BELAJAR: Tampilkan level & struktur dengan method helper -->
+                    <div class="mt-1">
+                        <span class="badge bg-secondary badge-sm">
+                            {{ $letter->penerima->getLevelLabel() }}
+                        </span>
+                        <span class="badge bg-light text-dark badge-sm">
+                            {{ $letter->penerima->getStrukturLabel() }}
+                        </span>
+                    </div>
                 </div>
             </div>
         @else
             <span class="text-muted">-</span>
         @endif
     </td>
-    
+
     <td>
         @php
             $statusBadge = [
@@ -56,9 +68,9 @@
                 'arsip' => 'Arsip'
             ];
         @endphp
-        <span class="badge {{ $statusBadge[$letter->status] ?? 'bg-secondary' }}">
+         <span class="badge {{ $statusBadge[$letter->status] ?? 'bg-secondary' }}">
             {{ $statusLabel[$letter->status] ?? $letter->status }}
-        </span>
+         </span>
     </td>
     <td class="text-center">
         <div class="btn-group btn-group-sm">
@@ -72,7 +84,7 @@
             @endif
             @if($letter->created_by === auth()->id() && in_array($letter->status, ['draft', 'ditolak']))
             <button type="button" class="btn btn-outline-danger btn-delete-trigger" 
-                    data-id="{{ $letter->id }}" title="Hapus">
+                   data-id="{{ $letter->id }}" title="Hapus">
                 <i class="bi bi-trash"></i>
             </button>
             @endif
@@ -80,7 +92,6 @@
     </td>
 </tr>
 @endforeach
-
 @if($letters->isEmpty())
 <tr>
     <td colspan="8" class="text-center py-4 text-muted">

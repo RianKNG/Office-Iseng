@@ -61,6 +61,16 @@
                         <option value="arsip" {{ request('status')=='arsip'?'selected':'' }}>Arsip</option>
                     </select>
                 </div>
+                <!-- 🔹 BELAJAR: Tambah filter untuk Pusat/Cabang/Unit -->
+                <div class="col-md-2">
+                    <label class="form-label">Struktur</label>
+                    <select id="strukturSelect" class="form-select">
+                        <option value="">Semua</option>
+                        <option value="pusat" {{ request('struktur')=='pusat'?'selected':'' }}>Pusat</option>
+                        <option value="cabang" {{ request('struktur')=='cabang'?'selected':'' }}>Cabang</option>
+                        <option value="unit" {{ request('struktur')=='unit'?'selected':'' }}>Unit</option>
+                    </select>
+                </div>
                 <div class="col-md-3">
                     <label class="form-label">Tanggal Dari</label>
                     <input type="date" id="fromDateInput" class="form-control" value="{{ request('from_date') }}">
@@ -184,32 +194,36 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const searchInput   = document.getElementById('searchInput');
-    const jenisSelect   = document.getElementById('jenisSelect');
-    const statusSelect  = document.getElementById('statusSelect');
-    const fromDateInput = document.getElementById('fromDateInput');
-    const resetBtn      = document.getElementById('resetFilter');
-    const tableBody     = document.getElementById('tableBody');
-    const pagination    = document.getElementById('paginationContainer');
-    const countBadge    = document.getElementById('countBadge');
+    // ✅ SELECTOR ELEMENTS (pastikan ID sesuai HTML)
+    const searchInput    = document.getElementById('searchInput');
+    const jenisSelect    = document.getElementById('jenisSelect');
+    const statusSelect   = document.getElementById('statusSelect');
+    const strukturSelect = document.getElementById('strukturSelect');
+    const fromDateInput  = document.getElementById('fromDateInput');
+    const resetBtn       = document.getElementById('resetFilter');
+    const tableBody      = document.getElementById('tableBody');
+    const pagination     = document.getElementById('paginationContainer');
+    const countBadge     = document.getElementById('countBadge');
     
     // Stats elements
     const statTotal     = document.getElementById('statTotal');
     const statWaiting   = document.getElementById('statWaiting');
     const statApproved  = document.getElementById('statApproved');
     const statRejected  = document.getElementById('statRejected');
-
+    
     let debounceTimer;
 
+    // ✅ FUNCTION: Fetch data via AJAX
     function fetchData(page = 1) {
         const params = new URLSearchParams({
-            search: searchInput.value,
-            jenis: jenisSelect.value,
-            status: statusSelect.value,
-            from_date: fromDateInput.value,
+            search: searchInput ? searchInput.value : '',
+            jenis: jenisSelect ? jenisSelect.value : '',
+            status: statusSelect ? statusSelect.value : '',
+            struktur: strukturSelect ? strukturSelect.value : '', // ✅ Tambah parameter struktur
+            from_date: fromDateInput ? fromDateInput.value : '',
             page: page
         });
-
+        
         fetch('{{ route("letters.index") }}?' + params.toString(), {
             headers: {
                 'Accept': 'application/json',
@@ -217,55 +231,64 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .then(function(res) { return res.json(); })
-        .then(function(data) {
-            // Update UI
-            tableBody.innerHTML = data.tableHtml;
-            pagination.innerHTML = data.pagination;
-            countBadge.textContent = data.count + ' Surat';
+        .then(function(data) { 
+            // Update table
+            if (tableBody) tableBody.innerHTML = data.tableHtml;
+            if (pagination) pagination.innerHTML = data.pagination;
+            if (countBadge) countBadge.textContent = data.count + ' Surat';
             
             // Update stats
             if (data.stats) {
-                statTotal.textContent    = data.stats.total;
-                statWaiting.textContent  = data.stats.waiting;
-                statApproved.textContent = data.stats.approved;
-                statRejected.textContent = data.stats.rejected;
+                if (statTotal) statTotal.textContent = data.stats.total;
+                if (statWaiting) statWaiting.textContent = data.stats.waiting;
+                if (statApproved) statApproved.textContent = data.stats.approved;
+                if (statRejected) statRejected.textContent = data.stats.rejected;
             }
-
-            // Re-bind delete buttons
+            
+            // Re-bind delete buttons after AJAX load
             var deleteBtns = document.querySelectorAll('.btn-delete-trigger');
             for (var i = 0; i < deleteBtns.length; i++) {
-                deleteBtns[i].addEventListener('click', (function(btn) {
-                    return function() { confirmDelete(btn.dataset.id); };
-                })(deleteBtns[i]));
+                (function(btn) {
+                    btn.addEventListener('click', function() { 
+                        confirmDelete(btn.dataset.id); 
+                    });
+                })(deleteBtns[i]);
             }
         })
         .catch(function(err) { console.error('Fetch error:', err); });
     }
-
-    // Debounce untuk search
-    searchInput.addEventListener('input', function() {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(function() { fetchData(1); }, 400);
-    });
-
-    // Fetch saat dropdown/tanggal berubah
-    var filterElements = [jenisSelect, statusSelect, fromDateInput];
-    for (var i = 0; i < filterElements.length; i++) {
-        filterElements[i].addEventListener('change', (function(el) {
-            return function() { fetchData(1); };
-        })(filterElements[i]));
+    
+    // ✅ SEARCH: Debounce 400ms agar tidak spam request
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(function() { fetchData(1); }, 400);
+        });
     }
-
-    // Reset filter
-    resetBtn.addEventListener('click', function() {
-        searchInput.value = '';
-        jenisSelect.value = '';
-        statusSelect.value = '';
-        fromDateInput.value = '';
-        fetchData(1);
-    });
-
-    // Pagination click handler (AJAX)
+    
+    // ✅ FILTER: Pasang event listener ke semua dropdown + tanggal
+    var filterElements = [jenisSelect, statusSelect, strukturSelect, fromDateInput];
+    for (var i = 0; i < filterElements.length; i++) {
+        if (filterElements[i]) {
+            (function(el) {
+                el.addEventListener('change', function() { fetchData(1); });
+            })(filterElements[i]);
+        }
+    }
+    
+    // ✅ RESET: Clear semua filter + fetch ulang
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+            if (searchInput) searchInput.value = '';
+            if (jenisSelect) jenisSelect.value = '';
+            if (statusSelect) statusSelect.value = '';
+            if (strukturSelect) strukturSelect.value = ''; // ✅ Reset struktur juga
+            if (fromDateInput) fromDateInput.value = '';
+            fetchData(1);
+        });
+    }
+    
+    // ✅ PAGINATION: Handle AJAX click (tanpa reload full page)
     document.addEventListener('click', function(e) {
         var link = e.target.closest('.pagination a');
         if (link) {
@@ -273,19 +296,39 @@ document.addEventListener('DOMContentLoaded', function() {
             var url = new URL(link.href);
             var page = url.searchParams.get('page') || 1;
             fetchData(page);
-            window.scrollTo({ 
-                top: document.querySelector('.card.shadow-sm').offsetTop - 100, 
-                behavior: 'smooth' 
-            });
+            // Scroll smooth ke table
+            var tableCard = document.querySelector('.card.shadow-sm');
+            if (tableCard) {
+                window.scrollTo({ 
+                    top: tableCard.offsetTop - 100, 
+                    behavior: 'smooth' 
+                });
+            }
         }
     });
-
-    // Expose confirmDelete to window
+    
+    // ✅ EXPOSE: Function confirmDelete untuk modal hapus
     window.confirmDelete = function(id) {
-        var modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-        document.getElementById('deleteForm').action = '/letters/' + id;
-        modal.show();
+        var modalEl = document.getElementById('deleteModal');
+        if (modalEl) {
+            var modal = new bootstrap.Modal(modalEl);
+            var deleteForm = document.getElementById('deleteForm');
+            if (deleteForm) {
+                deleteForm.action = '/letters/' + id;
+            }
+            modal.show();
+        }
     };
+    
+    // ✅ INIT: Bind delete buttons on first load
+    var deleteBtns = document.querySelectorAll('.btn-delete-trigger');
+    for (var i = 0; i < deleteBtns.length; i++) {
+        (function(btn) {
+            btn.addEventListener('click', function() { 
+                confirmDelete(btn.dataset.id); 
+            });
+        })(deleteBtns[i]);
+    }
 });
 </script>
 @endpush

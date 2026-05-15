@@ -121,31 +121,35 @@
                     </tr>
                     
                     <!-- ✅ INFO APPROVAL -->
+                    <!-- ✅ INFO APPROVAL (Updated dengan accessor) -->
                     @if($letter->approved_by && $letter->status == 'disetujui')
                     <tr>
                         <th>Disetujui Oleh</th>
                         <td>
-                            <strong>{{ $letter->approver->nama_lengkap ?? '-' }}</strong><br>
+                            <strong>{{ $letter->approver->nama_lengkap ?? '-' }}</strong> <br>
                             <small class="text-muted">
+                                <!-- 🔹 BELAJAR: accessor getStrukturLabel() otomatis cek relasi dulu -->
                                 {{ $letter->approver->jabatan ?? '' }} 
                                 @if($letter->approver)
                                     ({{ $letter->approver->getLevelLabel() }} - {{ $letter->approver->getStrukturLabel() }})
                                 @endif
                             </small>
                             @if($letter->approved_at)
-                                <br><small class="text-muted">
+                                <br> <small class="text-muted">
                                     <i class="bi bi-clock"></i> {{ $letter->approved_at->format('d M Y H:i') }} WIB
                                 </small>
                             @endif
                         </td>
                     </tr>
                     @endif
+
                     
-                    <tr>
+                     <tr>
                         <th>Dibuat Oleh</th>
                         <td>
-                            <strong>{{ $letter->creator->nama_lengkap }}</strong><br>
+                            <strong>{{ $letter->creator->nama_lengkap }}</strong> <br>
                             <small class="text-muted">
+                                <!-- 🔹 BELAJAR: sama, pakai accessor agar konsisten -->
                                 {{ $letter->creator->jabatan }}
                                 ({{ $letter->creator->getLevelLabel() }} - {{ $letter->creator->getStrukturLabel() }})
                             </small>
@@ -214,8 +218,9 @@
                             <div class="d-flex w-100 justify-content-between">
                                 <small class="fw-bold text-primary">
                                     {{ $disp->dari->nama_lengkap }}
+                                    <!-- 🔹 BELAJAR: Tampilkan level & struktur penerima -->
                                     <span class="badge bg-secondary ms-1" style="font-size: 0.7em;">
-                                        {{ $disp->dari->getLevelLabel() }}
+                                        {{ $disp->dari->getLevelLabel() }} • {{ $disp->dari->getStrukturLabel() }}
                                     </span>
                                 </small>
                                 <small class="text-muted">
@@ -227,7 +232,7 @@
                                 <i class="bi bi-arrow-right"></i> 
                                 {{ $disp->ke->nama_lengkap }}
                                 <span class="badge bg-secondary ms-1" style="font-size: 0.7em;">
-                                    {{ $disp->ke->getLevelLabel() }}
+                                    {{ $disp->ke->getLevelLabel() }} • {{ $disp->ke->getStrukturLabel() }}
                                 </span>
                             </p>
                             <p class="mb-1 small fst-italic text-muted">
@@ -259,21 +264,25 @@
                 <h6 class="mb-0"><i class="bi bi-eye"></i> Preview</h6>
             </div>
             <div class="card-body text-center">
-                <button type="button" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#previewModal">
-                    <i class="bi bi-eye"></i> Lihat Preview
-                </button>
+                <!-- Sesudah (Bootstrap 4 - Sesuaikan dengan SB Admin 2) -->
+            <button type="button" class="btn btn-primary w-100" data-toggle="modal" data-target="#previewModal">
+                <i class="bi bi-eye"></i> Lihat Preview
+            </button>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Modal Preview -->
-<div class="modal fade" id="previewModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+<div class="modal fade" id="previewModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title">👁️ Preview Surat</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <!-- Perubahan: class close dan data-dismiss -->
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
             </div>
             <div class="modal-body p-0">
                 <div id="preview-content" class="p-4 bg-white" style="min-height: 400px;">
@@ -284,7 +293,8 @@
                 <button onclick="window.print()" class="btn btn-primary">
                     <i class="bi bi-printer"></i> Print Halaman
                 </button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                <!-- Perubahan: data-dismiss -->
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
                 <a href="{{ route('letters.pdf', $letter->id) }}" class="btn btn-danger" target="_blank">
                     <i class="bi bi-file-pdf"></i> Download PDF
                 </a>

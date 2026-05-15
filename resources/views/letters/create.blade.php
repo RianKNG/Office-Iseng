@@ -27,8 +27,16 @@
                     <form method="POST" action="{{ route('letters.store') }}" id="letterForm" enctype="multipart/form-data">
                         @csrf
                         
-                        <!-- ⚠️ PENTING: Hidden input untuk ke_user_id -->
+                        <!-- Hidden input untuk ke_user_id -->
                         <input type="hidden" name="ke_user_id" id="ke_user_id_hidden" value="{{ old('ke_user_id') }}">
+                        
+                        <!-- Indikator Penerima Terpilih -->
+                        <div id="penerima-indicator" class="mt-3 p-3 bg-success bg-opacity-10 border border-success rounded d-none">
+                            <i class="bi bi-person-check-fill text-success me-2"></i>
+                            <strong>Penerima:</strong> <span id="penerima-nama"></span>
+                            <small class="d-block text-muted" id="penerima-jabatan"></small>
+                        </div>
+                        
                         @error('ke_user_id')
                             <div class="alert alert-warning">
                                 <i class="bi bi-exclamation-triangle me-2"></i>{{ $message }}
@@ -55,7 +63,7 @@
                             <small class="text-muted">Pilih template untuk memuat field yang sesuai</small>
                         </div>
 
-                        <!-- Field Standar -->
+                        <!-- Field Standar (HANYA 1x, tidak duplikat) -->
                         <div class="row g-3 mb-3">
                             <div class="col-md-6">
                                 <label for="nomor_surat" class="form-label fw-bold">Nomor Surat <span class="text-danger">*</span></label>
@@ -86,13 +94,6 @@
                         <div id="dynamic-fields" class="mt-4 p-3 bg-light rounded border d-none">
                             <h6 class="fw-bold mb-3">📋 Detail Template</h6>
                             <div id="fields-content"></div>
-                            
-                            <!-- ✅ Indikator Penerima Terpillih -->
-                            <div id="penerima-indicator" class="mt-3 p-3 bg-success bg-opacity-10 border border-success rounded d-none">
-                                <i class="bi bi-person-check-fill text-success me-2"></i>
-                                <strong>Penerima:</strong> <span id="penerima-nama"></span>
-                                <small class="d-block text-muted" id="penerima-jabatan"></small>
-                            </div>
                         </div>
 
                         <!-- File Upload (Opsional) -->
@@ -133,8 +134,7 @@
                 <div id="preview-content" class="p-4 border rounded bg-white"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
-                {{-- <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button> --}}
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
                 <button type="button" class="btn btn-primary" onclick="window.print()">
                     <i class="bi bi-printer me-1"></i>Cetak
                 </button>
@@ -145,6 +145,11 @@
 
 @push('scripts')
 <script>
+function ucfirst(str) {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const templateSelect = document.getElementById('template_id');
     const dynamicFields = document.getElementById('dynamic-fields');
@@ -155,7 +160,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const keUserIdHidden = document.getElementById('ke_user_id_hidden');
     
     let currentFields = [];
-    let usersData = @json($users ?? []);
+    // ✅ Pastikan controller kirim $usersData (bukan $users)
+    let usersData = @json($usersData ?? []);
     const currentUser = @json(auth()->user());
 
     const templateConfig = {
@@ -178,18 +184,30 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    // ✅ SYNC: Update hidden input + enable tombol submit
+    // ✅ SYNC: Update hidden input + tampilkan detail penerima
     window.syncPenerima = function(userId) {
         if (keUserIdHidden) {
             keUserIdHidden.value = userId;
             console.log('✅ [SYNC] ke_user_id =', userId);
-            
+
             if (userId && userId !== '') {
                 btnSubmit.disabled = false;
                 btnSubmit.title = "Siap disimpan";
+                
+                var selectedUser = usersData.find(function(u) { return u.id == userId; });
+                if (selectedUser) {
+                    document.getElementById('penerima-nama').textContent = selectedUser.nama_lengkap;
+                    
+                    // ✅ Format: "Kepala Cabang - Cabang Bandung"
+                    var cabangInfo = selectedUser.cabang_nama ? ' - ' + selectedUser.cabang_nama : '';
+                    document.getElementById('penerima-jabatan').textContent = 
+                        selectedUser.jabatan + cabangInfo;
+                }
+                document.getElementById('penerima-indicator').classList.remove('d-none');
             } else {
                 btnSubmit.disabled = true;
                 btnSubmit.title = "Pilih penerima surat terlebih dahulu";
+                document.getElementById('penerima-indicator').classList.add('d-none');
             }
         }
         updatePreview();
@@ -212,19 +230,21 @@ document.addEventListener('DOMContentLoaded', function() {
         var selectedOption = this.options[this.selectedIndex];
         var templateCode = selectedOption ? selectedOption.dataset.kode : '';
         
-        // ✅ RESET jika tidak ada template dipilih
         if (!templateId) {
             dynamicFields.classList.add('d-none');
             if (keUserIdHidden) keUserIdHidden.value = '';
-            fieldsContent.innerHTML = '';  // ✅ FIX: tidak pakai variabel 'html'
+            fieldsContent.innerHTML = '';
             btnPreview.disabled = true;
             btnSubmit.disabled = true;
+            document.getElementById('penerima-indicator').classList.add('d-none');
             return;
         }
 
         generateNomorSurat(templateCode);
+        
         var html = renderTemplateHeader(templateId);
         html += '<div class="row g-3">';
+        
         fieldsContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
         dynamicFields.classList.remove('d-none');
 
@@ -232,13 +252,13 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(function(response) { return response.json(); })
             .then(function(fields) {
                 currentFields = fields || [];
-
-                for (var i = 0; i < fields.length; i++) {
-                    var field = fields[i];
+                
+                for (var i = 0; i < currentFields.length; i++) {
+                    var field = currentFields[i];
                     var req = field.is_required ? 'required' : '';
                     var name = 'fields[' + field.id + ']';
-                    var fieldNameLower = field.nama_field.toLowerCase();
-                    
+                    var fieldNameLower = field.nama_field.toLowerCase().replace(/\s+/g, '');
+
                     html += '<div class="col-12">' +
                         '<div class="card border-0 shadow-sm mb-3">' +
                         '<div class="card-body">' +
@@ -254,13 +274,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                          || fieldNameLower === 'kepada_disposisi';
 
                     if (isPenerimaField) {
-                        html += '<select name="' + name + '" class="form-select form-select-lg" ' + req + ' onchange="syncPenerima(this.value)">' +
-                            '<option value="">-- Pilih Penerima --</option>';
+                        html += '<select name="' + name + '" class="form-select form-select-lg" ' + req + ' onchange="syncPenerima(this.value)">';
+                        html += '<option value="">-- Pilih Penerima --</option>';
                         
+                        // ✅ Render dropdown user: "Nama - Jabatan (Nama Cabang)"
                         for (var j = 0; j < usersData.length; j++) {
                             var user = usersData[j];
                             if (user.id != currentUser.id) {
-                                html += '<option value="' + user.id + '">' + user.nama_lengkap + ' - ' + user.jabatan + '</option>';
+                                var cabangInfo = user.cabang_nama ? ' (' + user.cabang_nama + ')' : '';
+                                html += '<option value="' + user.id + '">' + 
+                                        user.nama_lengkap + ' - ' + user.jabatan + cabangInfo +
+                                        '</option>';
                             }
                         }
                         html += '</select><small class="text-muted">Penerima akan menerima notifikasi</small>';
@@ -288,7 +312,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 fieldsContent.innerHTML = html + '</div>';
                 btnPreview.disabled = false;
 
-                // ✅ FIX: Auto-enable btnSubmit jika TIDAK ADA field penerima
+                // Auto-enable btnSubmit jika tidak ada field penerima
                 var hasPenerimaField = document.querySelector('select[onchange*="syncPenerima"]');
                 if (!hasPenerimaField) {
                     btnSubmit.disabled = false;
@@ -354,12 +378,17 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.show();
     });
 
+    // Submit handler
     // ✅ SATU event listener submit saja
     document.getElementById('letterForm').addEventListener('submit', function(e) {
         var keUserId = keUserIdHidden ? keUserIdHidden.value : '';
         console.log('📤 [SUBMIT] ke_user_id:', keUserId);
         
-        if (!keUserId || keUserId === '') {
+        // ✅ CHECK: Apakah ada field penerima di form?
+        var hasPenerimaField = document.querySelector('select[onchange*="syncPenerima"]');
+        
+        // ✅ Hanya validasi jika ada field penerima
+        if (hasPenerimaField && (!keUserId || keUserId === '')) {
             e.preventDefault();
             alert('⚠️ Pilih penerima surat terlebih dahulu!');
             
@@ -374,8 +403,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log('✅ Form valid, submitting...');
     });
-    
-    // Reset form handler
+        
+    // Reset handler
     document.querySelector('button[type="reset"]').addEventListener('click', function() {
         setTimeout(function() {
             dynamicFields.classList.add('d-none');
@@ -383,6 +412,7 @@ document.addEventListener('DOMContentLoaded', function() {
             btnSubmit.disabled = true;
             btnPreview.disabled = true;
             if (keUserIdHidden) keUserIdHidden.value = '';
+            document.getElementById('penerima-indicator').classList.add('d-none');
         }, 100);
     });
 });
