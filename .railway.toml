@@ -1,7 +1,3 @@
 [build]
 builder = "dockerfile"
 dockerfilePath = "Dockerfile"
-
-[deploy]
-startCommand = "apache2-foreground" # atau sesuaikan dengan web server Anda
-restartPolicyType = "ON_FAILURE"
