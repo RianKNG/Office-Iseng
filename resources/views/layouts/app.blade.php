@@ -9,7 +9,7 @@
 
     <title>{{ config('app.name', 'e-Office') }}</title>
 
-    
+    <link rel="manifest" href="/manifest.json">
        <!-- Custom fonts for this template-->
     <link href="{{ asset('sb-admin-2/vendor/fontawesome-free/css/all.min.css') }}" rel="stylesheet" type="text/css">
    
@@ -294,6 +294,21 @@
 
     {{-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> --}}
      @include('layouts.part.scripts')
+<!-- Simpan tepat sebelum </body> -->
+{{-- <script>
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('✅ SW aktif:', reg.scope))
+      .catch(err => console.error('❌ SW gagal:', err));
+  }
+</script> --}}
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('✅ SW terdaftar:', reg.scope))
+      .catch(err => console.error('❌ Gagal daftar SW:', err));
+  }
+</script>
 
 </body>
 </html>
