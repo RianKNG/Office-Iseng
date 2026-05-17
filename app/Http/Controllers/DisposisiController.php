@@ -1,13 +1,16 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Controller;
 use App\Models\Disposisi;
 use App\Models\Letter;
 use App\Models\LetterValue;
+use App\Models\Notification;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\NotifikasiService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -227,105 +230,276 @@ class DisposisiController extends Controller
     //         return redirect()->back()->with('error', ' Gagal: ' . $e->getMessage());
     //     }
     // }
-    public function process(Request $request, $id)
+//     public function process(Request $request, $id)
+// {
+//     // 🔍 DEBUG - DUMP SEMUA DATA
+//         // Debug sebelum simpan
+//     dd([
+//         'action' => $request->action,
+//         'ke_user_id' => $request->ke_user_id,
+//         'dari_user_id' => Auth::id(),
+//         'letter_id' => $request->letter_id,
+//     ]);
+    
+//     DB::transaction(function () use ($request) {
+//         $disposisi = Disposisi::create([
+//             'letter_id' => $request->letter_id,
+//             'dari_user_id' => Auth::id(),
+//             'ke_user_id' => $request->ke_user_id,
+//             'instruksi' => $request->instruksi,
+//             'status' => 'pending',
+//         ]);
+        
+//         // Update approved_by jika Direktur
+//         if (Auth::user()->level === 'dirut') {
+//             $disposisi->letter->update(['approved_by' => Auth::id()]);
+//         }
+//     });
+//     // d([
+//     //     'request_all' => $request->all(),
+//     //     'request_action' => $request->action,
+//     //     'request_ke_user_id' => $request->ke_user_id,
+//     //     'auth_user_id' => Auth::id(),
+//     //     'auth_user_level' => Auth::user()->level,
+//     //     'auth_user_nama' => Auth::user()->nama_lengkap,
+//     //     'letter_id' => $id,
+//     // ]);
+
+//     $request->validate(array(
+//         'status'     => 'nullable|in:pending,dibaca,diproses,diteruskan,dikembalikan,selesai',
+//         'action'     => 'required|in:approve,forward,return,reject,proses,selesai',
+//         'instruksi'  => 'nullable|string|max:500',
+//         'ke_user_id' => 'nullable|exists:users,id',
+//         'prioritas'  => 'nullable|in:biasa,penting,segera,rahasia',
+//     ));
+
+//     $disposisi = Disposisi::with('letter')->findOrFail($id);
+//     $user      = auth()->user();
+
+//     // ... [validasi routing tetap sama] ...
+
+//     switch ($request->action) {
+//         case 'approve':
+//         case 'forward':
+//             $targetStatus = 'diteruskan';
+//             break;
+//         case 'return':
+//             $targetStatus = 'dikembalikan';
+//             break;
+//         case 'reject':
+//             $targetStatus = 'ditolak';
+//             break;
+//         case 'proses':
+//             $targetStatus = 'diproses';
+//             break;
+//         case 'selesai':
+//             $targetStatus = 'selesai';
+//             break;
+//         default:
+//             $targetStatus = 'diproses';
+//             break;
+//     }
+
+//     DB::beginTransaction();
+//     try {
+//         $updateData = array('status' => $targetStatus, 'updated_at' => now());
+//         if ($request->filled('instruksi')) {
+//             $updateData['instruksi'] = $isLeader 
+//                 ? $request->instruksi 
+//                 : '[Verifikator: ' . $user->nama_lengkap . '] ' . $request->instruksi;
+//         }
+//         $disposisi->update($updateData);
+
+//         // ✅ FIX: Set approved_by jika Direktur yang approve
+//        // Di dalam method process(), tepat sebelum kode if Anda:
+// \Log::info('DEBUG ACTION: ' . $request->action . ' | USER LEVEL: ' . $user->level);
+
+// if ($user->isDirut() && in_array($request->action, ['approve', 'selesai','forward'])) {
+//      dd([
+//         'condition_met' => true,
+//         'user_level' => $user->level,
+//         'action' => $request->action,
+//         'current_approved_by' => $disposisi->letter->approved_by,
+//         'will_update_to' => $user->id,
+//     ]);
+
+//     \Log::info('✅ LOGIC DIRUT APPROVE TERPICU');
+//     if (is_null($disposisi->letter->approved_by)) {
+//         $disposisi->letter->update(['approved_by' => $user->id]);
+//         \Log::info('✅ APPROVED_BY BERHASIL DI-UPDATE KE: ' . $user->id);
+//     }
+// }
+
+//         if (in_array($request->action, array('forward', 'return')) && $request->filled('ke_user_id')) {
+//             $nextUser = User::findOrFail($request->ke_user_id);
+//             Disposisi::create(array(
+//                 'letter_id'    => $disposisi->letter_id,
+//                 'parent_id'    => $disposisi->id,
+//                 'dari_user_id' => $user->id,
+//                 'ke_user_id'   => $nextUser->id,
+//                 'instruksi'    => $request->action === 'return' ? 'Revisi: ' . ($request->instruksi ?: 'Perbaiki sesuai ketentuan') : ($request->instruksi ?: 'Mohon ditindaklanjuti'),
+//                 'status'       => $request->action === 'return' ? 'draft' : 'pending',
+//                 'prioritas'    => $request->prioritas ?: 'biasa',
+//                 'deadline'     => $request->action !== 'return' ? ($request->deadline ?: now()->addDays(3)) : null,
+//             ));
+//         }
+
+//         if ($request->action === 'reject') {
+//             $disposisi->letter->update(array('status' => 'ditolak'));
+//         } elseif ($targetStatus === 'dikembalikan') {
+//             $disposisi->letter->update(array('status' => 'diproses'));
+//         } else {
+//             $this->syncLetterStatus($disposisi->letter_id);
+//         }
+
+//         if ($request->filled('ke_user_id') && $request->action !== 'reject') {
+//             app(NotifikasiService::class)->kirim(
+//                 User::find($request->ke_user_id),
+//                 $disposisi->letter,
+//                 $disposisi,
+//                 $request->action === 'return' ? 'Surat dikembalikan untuk revisi' : 'Tugas/disposisi baru'
+//             );
+//         }
+
+//         DB::commit();
+//         return redirect()->back()->with('success', '✅ Proses berhasil');
+//     } catch (\Exception $e) {
+//         DB::rollBack();
+//         Log::error('Process Error: ' . $e->getMessage());
+//         return redirect()->back()->with('error', ' Gagal: ' . $e->getMessage());
+//     }
+// }
+public function process(Request $request, $id)
 {
-    $request->validate(array(
-        'status'     => 'nullable|in:pending,dibaca,diproses,diteruskan,dikembalikan,selesai',
-        'action'     => 'required|in:approve,forward,return,reject,proses,selesai',
-        'instruksi'  => 'nullable|string|max:500',
-        'ke_user_id' => 'nullable|exists:users,id',
-        'prioritas'  => 'nullable|in:biasa,penting,segera,rahasia',
-    ));
-
-    $disposisi = Disposisi::with('letter')->findOrFail($id);
-    $user      = auth()->user();
-
-    // ... [validasi routing tetap sama] ...
-
-    switch ($request->action) {
-        case 'approve':
-        case 'forward':
-            $targetStatus = 'diteruskan';
-            break;
-        case 'return':
-            $targetStatus = 'dikembalikan';
-            break;
-        case 'reject':
-            $targetStatus = 'ditolak';
-            break;
-        case 'proses':
-            $targetStatus = 'diproses';
-            break;
-        case 'selesai':
-            $targetStatus = 'selesai';
-            break;
-        default:
-            $targetStatus = 'diproses';
-            break;
-    }
-
-    DB::beginTransaction();
-    try {
-        $updateData = array('status' => $targetStatus, 'updated_at' => now());
-        if ($request->filled('instruksi')) {
-            $updateData['instruksi'] = $isLeader 
-                ? $request->instruksi 
-                : '[Verifikator: ' . $user->nama_lengkap . '] ' . $request->instruksi;
-        }
-        $disposisi->update($updateData);
-
-        // ✅ FIX: Set approved_by jika Direktur yang approve
-       // Di dalam method process(), tepat sebelum kode if Anda:
-\Log::info('DEBUG ACTION: ' . $request->action . ' | USER LEVEL: ' . $user->level);
-
-if ($user->isDirut() && in_array($request->action, ['approve', 'selesai'])) {
-    \Log::info('✅ LOGIC DIRUT APPROVE TERPICU');
-    if (is_null($disposisi->letter->approved_by)) {
-        $disposisi->letter->update(['approved_by' => $user->id]);
-        \Log::info('✅ APPROVED_BY BERHASIL DI-UPDATE KE: ' . $user->id);
-    }
-}
-
-        if (in_array($request->action, array('forward', 'return')) && $request->filled('ke_user_id')) {
-            $nextUser = User::findOrFail($request->ke_user_id);
-            Disposisi::create(array(
-                'letter_id'    => $disposisi->letter_id,
-                'parent_id'    => $disposisi->id,
+     $disposisi = Disposisi::findOrFail($id);
+    $letter = $disposisi->letter;
+    $user = Auth::user(); // ✅ Definisi $user di luar closure
+    
+    DB::transaction(function () use ($request, $disposisi, $letter, $user) { // ✅ Tambahkan $user di use()
+        
+        // 1. Handle forward
+        if ($request->action === 'forward' && $request->filled('ke_user_id')) {
+            Disposisi::create([
+                'letter_id' => $letter->id,
                 'dari_user_id' => $user->id,
-                'ke_user_id'   => $nextUser->id,
-                'instruksi'    => $request->action === 'return' ? 'Revisi: ' . ($request->instruksi ?: 'Perbaiki sesuai ketentuan') : ($request->instruksi ?: 'Mohon ditindaklanjuti'),
-                'status'       => $request->action === 'return' ? 'draft' : 'pending',
-                'prioritas'    => $request->prioritas ?: 'biasa',
-                'deadline'     => $request->action !== 'return' ? ($request->deadline ?: now()->addDays(3)) : null,
-            ));
+                'ke_user_id' => $request->ke_user_id,
+                'instruksi' => $request->instruksi,
+                'status' => 'pending',
+                'parent_id' => $disposisi->id,
+            ]);
         }
-
-        if ($request->action === 'reject') {
-            $disposisi->letter->update(array('status' => 'ditolak'));
-        } elseif ($targetStatus === 'dikembalikan') {
-            $disposisi->letter->update(array('status' => 'diproses'));
-        } else {
-            $this->syncLetterStatus($disposisi->letter_id);
+        
+        // 2. Update approved_by jika Direktur
+        if ($user->level === 'dirut' && in_array($request->action, ['approve', 'forward', 'selesai'])) {
+            if (is_null($letter->approved_by)) {
+                $letter->approved_by = $user->id;
+                $letter->save();
+            }
         }
+        
+        // 3. Update status
+        // 1. Buat pemetaan status menggunakan array (Aman untuk PHP 7)
+$statusMapping = [
+    'approve' => 'disetujui',
+    'forward' => 'diproses',
+    'selesai' => 'selesai',
+    'reject'  => 'ditolak',
+];
 
-        if ($request->filled('ke_user_id') && $request->action !== 'reject') {
-            app(NotifikasiService::class)->kirim(
-                User::find($request->ke_user_id),
-                $disposisi->letter,
-                $disposisi,
-                $request->action === 'return' ? 'Surat dikembalikan untuk revisi' : 'Tugas/disposisi baru'
-            );
+// 2. Ambil status baru, jika action tidak terdaftar maka gunakan status lama (default)
+$newStatus = $statusMapping[$request->action] ?? $letter->status;
+
+// 3. Simpan perubahan ke database
+$letter->status = $newStatus;
+$letter->save();
+        
+        // 4. Kirim notifikasi
+        if ($request->filled('ke_user_id') && $request->action === 'forward') {
+            \App\Models\Notifikasi::create([
+                'user_id' => $request->ke_user_id,
+                'message' => "📬 Disposisi Baru: {$letter->nomor_surat}\nDari: {$user->nama_lengkap}",
+                'disposisi_id' => $disposisi->id,
+                'is_read' => false,
+                'created_by' => $user->id,
+            ]);
         }
-
-        DB::commit();
-        return redirect()->back()->with('success', '✅ Proses berhasil');
-    } catch (\Exception $e) {
-        DB::rollBack();
-        Log::error('Process Error: ' . $e->getMessage());
-        return redirect()->back()->with('error', ' Gagal: ' . $e->getMessage());
-    }
+    });
+    
+    return redirect()->back()->with('success', 'Disposisi berhasil diproses.');
 }
 
+// {
+//     \Log::info('=== DEBUG DISPOSISI PROCESS ===', [
+//     'disposisi_id' => $id,
+//     'letter_id_from_form' => $request->letter_id,
+//     'letter_id_from_relation' => $disposisi->letter->id ?? 'NULL',
+//     'action' => $request->action,
+//     'ke_user_id' => $request->ke_user_id,
+//     'auth_user' => ['id' => $user->id, 'level' => $user->level],
+// ]);
+//     $disposisi = Disposisi::findOrFail($id);
+//     $letter = $disposisi->letter; // Ambil surat dari relasi
+//     $user = Auth::user();
+    
+//     DB::transaction(function () use ($request, $disposisi, $letter, $user) {
+        
+//         // 1. Update disposisi (jika forward, buat disposisi baru)
+//         if ($request->action === 'forward' && $request->filled('ke_user_id')) {
+//             Disposisi::create([
+//                 'letter_id' => $letter->id,
+//                 'dari_user_id' => $user->id,
+//                 'ke_user_id' => $request->ke_user_id,
+//                 'instruksi' => $request->instruksi,
+//                 'status' => 'pending',
+//                 'parent_id' => $disposisi->id,
+//             ]);
+//         }
+        
+//         // 2. ✅ UPDATE approved_by JIKA DIREKTUR
+//         if ($user->level === 'dirut' && in_array($request->action, ['approve', 'forward', 'selesai'])) {
+//             if (is_null($letter->approved_by)) {
+//                 $letter->approved_by = $user->id;
+//                 $letter->save();
+//                 \Log::info("✅ approved_by di-set ke Direktur ID: {$user->id}");
+//             }
+//         }
+        
+//         // 3. Update status surat
+//         switch ($request->action) {
+//     case 'approve':
+//         $newStatus = 'disetujui';
+//         break;
+//     case 'forward':
+//         $newStatus = 'diproses';
+//         break;
+//     case 'selesai':
+//         $newStatus = 'selesai';
+//         break;
+//     case 'reject':
+//         $newStatus = 'ditolak';
+//         break;
+//     default:
+//         $newStatus = $letter->status;
+//         break;
+// }
+//         $letter->status = $newStatus;
+//         $letter->save();
+        
+//         // 4. ✅ KIRIM NOTIFIKASI KE PENERIMA
+//         if ($request->filled('ke_user_id') && $request->action === 'forward') {
+//             Notification::create([
+//                 'user_id' => $request->ke_user_id,
+//                 'message' => "📬 Disposisi Baru: {$letter->nomor_surat} - {$letter->perihal}\nDari: {$user->nama_lengkap}\nInstruksi: {$request->instruksi}",
+//                 'disposisi_id' => $disposisi->id,
+//                 'is_read' => false,
+//                 'created_by' => $user->id,
+//             ]);
+//             \Log::info("✅ Notifikasi dikirim ke User ID: {$request->ke_user_id}");
+//         }
+//     });
+    
+//     return redirect()->back()->with('success', 'Disposisi berhasil diproses.');
+// }
     public function reply(Request $request, $id)
     {
         $request->validate(array(

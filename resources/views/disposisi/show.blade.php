@@ -1,4 +1,6 @@
 @extends('layouts.app')
+{{-- Tombol untuk Leader --}}
+
 @section('title', 'Detail Disposisi')
 @section('content')
 <div class="container-fluid py-4">
@@ -137,6 +139,11 @@
                                 </div>
                             @endif
                             {{-- Tombol untuk Leader --}}
+                            {{-- @if(auth()->user()->isLeader() && in_array($disposisi->status, ['pending', 'dibaca']))
+    <button type="button" onclick="submitForm('formApprove', 'approve')" class="btn btn-success w-100 mb-2">
+        <i class="bi bi-check-circle"></i> Setujui & Teruskan
+    </button>
+@endif --}}
                             @if($isLeader && in_array($disposisi->status, ['pending', 'dibaca']))
                                 <button type="button" onclick="submitForm('formApprove', 'approve')" class="btn btn-success w-100 mb-2"><i class="bi bi-check-circle"></i> Setujui & Teruskan</button>
                             @endif
@@ -200,7 +207,7 @@
 </div>
 
 <!-- ✅ MODAL FORWARD (Form yang BENAR) -->
-<div class="modal fade" id="modalForward" tabindex="-1">
+{{-- <div class="modal fade" id="modalForward" tabindex="-1">
     <div class="modal-dialog">
         <form id="formForward" action="{{ route('disposisi.process', $disposisi->id) }}" method="POST">
             @csrf
@@ -231,6 +238,53 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
                     <button type="button" onclick="document.getElementById('formForward').submit();" class="btn btn-primary"><i class="bi bi-send"></i> Teruskan</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div> --}}
+<!-- ✅ MODAL FORWARD (PERBAIKAN) -->
+<div class="modal fade" id="modalForward" tabindex="-1">
+    <div class="modal-dialog">
+        <form id="formForward" action="{{ route('disposisi.process', $disposisi->id) }}" method="POST">
+            @csrf
+            <input type="hidden" name="action" value="forward">
+            
+            {{-- ✅ TAMBAHKAN INI: Letter ID --}}
+            <input type="hidden" name="letter_id" value="{{ $disposisi->letter->id }}">
+            
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-share"></i> Teruskan Disposisi</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <small>Teruskan disposisi ini ke user lain untuk ditindaklanjuti</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Teruskan Kepada</label>
+                        <select name="ke_user_id" class="form-control" required>
+                            <option value="">-- Pilih User --</option>
+                            @foreach($availableUsers as $user)
+                                @if($user->id != auth()->id())
+                                    <option value="{{ $user->id }}">
+                                        {{ $user->nama_lengkap }} - {{ $user->jabatan }} ({{ $user->getLevelLabel() }})
+                                    </option>
+                                @endif
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Instruksi Tambahan</label>
+                        <textarea name="instruksi" class="form-control" rows="3" placeholder="Instruksi untuk user tujuan..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" onclick="document.getElementById('formForward').submit();" class="btn btn-primary">
+                        <i class="bi bi-send"></i> Teruskan
+                    </button>
                 </div>
             </div>
         </form>

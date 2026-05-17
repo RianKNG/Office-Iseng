@@ -80,6 +80,10 @@ class User extends Authenticatable
         }
         return $this->attributes['unit_kerja'] ?? 'umum';
     }
+    public function isLeader()
+{
+    return in_array($this->level, ['kabag', 'kacab', 'dirut', 'admin']);
+}
 
     // 🔹 LOGIKA ROUTING: Ganti string comparison → ID comparison
     // public function canForwardTo(User $target): bool
