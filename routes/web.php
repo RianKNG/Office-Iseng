@@ -39,6 +39,24 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [HomeController::class, 'index'])->name('dashboard');
     Route::get('/home', fn() => redirect()->route('dashboard'))->name('home');
 
+
+    // Notifikasi Routes
+Route::get('/api/notifications', [App\Http\Controllers\NotificationController::class, 'getNotifications'])
+    ->name('api.notifications.get');
+Route::get('/api/notifications/details', [App\Http\Controllers\NotificationController::class, 'getNotificationDetails'])
+    ->name('api.notifications.details');
+    // Route untuk download PDF surat (tambahkan di group auth)
+
+    
+    // ✅ Route download PDF surat
+    Route::get('/letters/{id}/download', [App\Http\Controllers\LetterController::class, 'downloadPdf'])
+        ->name('letters.download');
+    
+    // ✅ Route untuk reports (jika belum ada)
+    Route::get('/reports', [App\Http\Controllers\ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/export-pdf', [App\Http\Controllers\ReportController::class, 'exportPdf'])->name('reports.export.pdf');
+
+
     // =============================================================================
     // 📄 LETTERS MANAGEMENT
     // =============================================================================
@@ -144,6 +162,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/templates', [AdminController::class, 'templates'])->name('templates');
         
     }); // ✅ Tutup group admin
+    // Group route untuk API Notifikasi
+Route::prefix('api/notifications')->group(function () {
+    Route::get('/count', [App\Http\Controllers\NotificationController::class, 'getCount'])->name('api.notif.count');
+    Route::get('/list', [App\Http\Controllers\NotificationController::class, 'getList'])->name('api.notif.list');
+    Route::post('/read-all', [App\Http\Controllers\NotificationController::class, 'markAllRead'])->name('api.notif.read');
+});
+
 
 }); // ✅ Tutup group auth
 // ✅ TIDAK ADA KURUNG LAGI DI SINI - FILE BERAKHIR DI SINI

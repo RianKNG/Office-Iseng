@@ -135,12 +135,16 @@
 
     {{-- Header --}}
     <div class="header">
-        <img src="{{ public_path('images/logo-kab-sumedang.png') }}" class="logo-left" onerror="this.style.display='none'">
+        {{-- <img src="{{ asset('storage/' . auth()->user()->foto_profile) }}"  --}}
+        {{-- <img src="{{ public_path('foto/kabupaten.png') }}" class="logo-left" onerror="this.style.display='none'"> --}}
+       <img src="{{ storage_path('app/public/signatures/kabupaten.png') }}" class="logo-left" onerror="this.style.display='none'">
         <h3>PEMERINTAH KABUPATEN SUMEDANG</h3>
         <h2>PERUSAHAAN DAERAH AIR MINUM</h2>
         <p>JALAN RAYA SUMEDANG - CIREBON KM. 4,5 DS. SERANG CIMALAKA</p>
         <p>Telp. (0261) 202827 E-mail: pdamsumedang@gmail.com SUMEDANG 45353</p>
-        <img src="{{ public_path('images/logo-pdam.png') }}" class="logo-right" onerror="this.style.display='none'">
+        <img src="{{ storage_path('app/public/signatures/pdam.png') }}" class="logo-right" onerror="this.style.display='none'">
+
+
     </div>
     <div class="header-line-2"></div>
 

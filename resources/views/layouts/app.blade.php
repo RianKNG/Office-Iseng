@@ -147,14 +147,23 @@
             <hr class="sidebar-divider my-0">
             <!-- Nav Item - Pages Collapse Menu -->
             <li class="nav-item">
-                   <a class="nav-link" href="#">
+                   <a class="nav-link" href="{{ route('reports.index') }}">
                        <i class="fas fa-fw fa-tachometer-alt"></i>
                        <span>Laporan</span></a>
                        <a class="nav-link" 
                        </i> 
                   </a>
-               </li>         
-            <!-- Divider -->
+               </li>   
+               
+               
+               <!-- Di sidebar atau navbar -->
+{{-- <li class="nav-item">
+    <a class="nav-link" href="{{ route('reports.index') }}">
+        <i class="fas fa-chart-bar me-1"></i>
+        <span>Laporan</span>
+    </a>
+</li>
+            <!-- Divider --> --}}
             <hr class="sidebar-divider">
             <!-- Heading -->
             <div class="sidebar-heading">Management User</div>
