@@ -4,160 +4,330 @@
     <meta charset="utf-8">
     <title>Surat Digital - PDAM Sumedang</title>
     <style>
-        @page { margin: 2cm; }
+        @page { 
+            margin: 1.5cm 2cm;
+            margin-top: 1.5cm;
+        }
         body {
             font-family: 'Times New Roman', Times, serif;
             font-size: 11pt;
-            line-height: 1.3;
+            line-height: 1.5;
             color: #000;
             background: white;
+            margin: 0;
+            padding: 0;
         }
-        /* Header / Kop Surat */
+        
+        /* Header */
         .header {
             position: relative;
             text-align: center;
             border-bottom: 3px solid #000;
-            padding-bottom: 5px;
-            margin-bottom: 2px;
+            padding-bottom: 3px;
+            margin-bottom: 5px;
         }
         .header-line-2 {
             border-bottom: 1px solid #000;
-            margin-bottom: 15px;
-            height: 2px;
+            margin-bottom: 10px;
+            height: 1px;
         }
-        .logo-left {
-            position: absolute;
-            left: 0; top: 0;
-            width: 70px;
-        }
-        .logo-right {
-            position: absolute;
-            right: 0; top: 0;
-            width: 70px;
-        }
-        .header h3 { margin: 0; font-size: 13pt; font-weight: normal; }
-        .header h2 { margin: 0; font-size: 15pt; font-weight: bold; }
-        .header p { margin: 0; font-size: 9pt; }
+        .logo-left { position: absolute; left: 0; top: 0; width: 60px; }
+        .logo-right { position: absolute; right: 0; top: 0; width: 60px; }
+        .header h3 { margin: 0; font-size: 12pt; font-weight: normal; line-height: 1.2; }
+        .header h2 { margin: 0; font-size: 14pt; font-weight: bold; line-height: 1.2; }
+        .header p { margin: 1px 0; font-size: 8pt; line-height: 1.2; }
 
-        /* Content Layout */
-        .content { margin-top: 20px; }
-        .date-place { text-align: right; margin-bottom: 20px; }
+        /* Content */
+        .content { margin-top: 5px; padding: 0; }
+        .date-place { text-align: right; margin-bottom: 15px; line-height: 1.8; }
         
-        .info-table { width: 100%; margin-bottom: 20px; }
-        .info-table td { vertical-align: top; }
-
-        .invitation-text { text-align: justify; margin-bottom: 15px; text-indent: 40px; }
-
-        /* Detail Undangan (Tabel Tengah) */
-        .details-table { margin-left: 80px; margin-bottom: 20px; }
-        .details-table td { padding: 2px 5px; }
-
+        /* Info Table */
+        .info-table { width: 100%; margin-bottom: 15px; }
+        .info-table td { vertical-align: top; padding: 1px 0; line-height: 1.4; }
+        
+        /* Isi Surat */
+        .invitation-text { 
+            text-align: justify; 
+            margin-bottom: 15px; 
+            text-indent: 40px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        /* Detail Fields */
+        .details-table { margin-left: 40px; margin-bottom: 15px; width: auto; }
+        .details-table td { padding: 2px 5px; vertical-align: top; line-height: 1.4; }
+        
+        /* Penutup */
+        .closing-text { margin-bottom: 20px; text-align: justify; }
+        
         /* Tanda Tangan */
-        .sig-container {
-            float: right;
-            width: 300px;
-            text-align: center;
-            margin-top: 20px;
+        .signature-table { 
+            width: 100%; 
+            margin-top: 20px; 
+            border-collapse: collapse; 
+            page-break-inside: avoid;
         }
-        .sig-space {
-            height: 80px;
-            position: relative;
-            margin: 5px 0;
+        .signature-table td { 
+            width: 50%; 
+            vertical-align: top; 
+            text-align: center; 
+            padding: 5px; 
         }
+        .signature-space { height: 70px; position: relative; margin: 10px 0; }
         .signature-img {
-            max-height: 80px;
+            max-height: 60px;
+            max-width: 120px;
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
         }
-
-        /* Tembusan */
-        .tembusan {
-            margin-top: 50px;
-            clear: both;
-            font-size: 10pt;
+        .signature-label { font-weight: bold; margin-bottom: 5px; line-height: 1.3; font-size: 10pt; }
+        .signature-name { font-weight: bold; text-decoration: underline; margin: 5px 0 2px 0; font-size: 11pt; }
+        .signature-nip { font-size: 9pt; margin-top: 1px; }
+        
+        /* Tembusan - KIRI BAWAH */
+        .tembusan-wrapper {
+            margin-top: 25px;
+            text-align: left !important;
+            page-break-inside: avoid;
+            width: 100%;
         }
-        .tembusan p { margin-bottom: 2px; font-weight: bold; text-decoration: underline; }
-        .tembusan ol { margin-top: 0; padding-left: 20px; }
+        .tembusan-label {
+            font-weight: bold;
+            text-decoration: underline;
+            margin-bottom: 5px;
+            font-size: 9pt;
+        }
+        .tembusan-list {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 9pt;
+            line-height: 1.4;
+            list-style-position: outside;
+        }
+        .tembusan-list li {
+            margin-bottom: 2px;
+        }
+        
+        /* Watermark */
+        .watermark-pending {
+            position: fixed;
+            top: 40%;
+            left: 15%;
+            transform: rotate(-30deg);
+            opacity: 0.08;
+            font-size: 40pt;
+            color: red;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 0;
+        }
     </style>
 </head>
 <body>
+
+    {{-- Watermark --}}
+    @if(!isset($is_approved) || !$is_approved)
+        <div class="watermark-pending">MENUNGGU VERIFIKASI</div>
+    @endif
+
+    {{-- Header --}}
     <div class="header">
-        <!-- Pastikan path logo sesuai dengan folder public/ storage Anda -->
-        <img src="https://path-ke-logo-kab-sumedang.png" class="logo-left">
+        <img src="{{ public_path('images/logo-kab-sumedang.png') }}" class="logo-left" onerror="this.style.display='none'">
         <h3>PEMERINTAH KABUPATEN SUMEDANG</h3>
         <h2>PERUSAHAAN DAERAH AIR MINUM</h2>
         <p>JALAN RAYA SUMEDANG - CIREBON KM. 4,5 DS. SERANG CIMALAKA</p>
         <p>Telp. (0261) 202827 E-mail: pdamsumedang@gmail.com SUMEDANG 45353</p>
-        <img src="https://path-ke-logo-pdam.png" class="logo-right">
+        <img src="{{ public_path('images/logo-pdam.png') }}" class="logo-right" onerror="this.style.display='none'">
     </div>
     <div class="header-line-2"></div>
 
+    {{-- Content --}}
     <div class="content">
+        {{-- Tanggal --}}
         <div class="date-place">
-            Sumedang, {{ $letter->tanggal->format('d F Y') }}
+            Sumedang, {{ $letter->tanggal ? $letter->tanggal->format('d F Y') : date('d F Y') }}
         </div>
 
-        <table class="info-table">
-            <tr>
-                <td style="width: 15%;">Nomor</td>
-                <td style="width: 45%;">: {{ $letter->nomor_surat }}</td>
-                <td style="width: 10%;">Kepada</td>
-                <td rowspan="4">Yth. <strong>Penerima Surat</strong><br>di -<br><span style="margin-left: 15px;">Tempat</span></td>
-            </tr>
-            <tr>
-                <td>Sifat</td>
-                <td>: Biasa</td>
-            </tr>
-            <tr>
-                <td>Lampiran</td>
-                <td>: -</td>
-            </tr>
-            <tr>
-                <td>Perihal</td>
-                <td>: <strong><u>{{ $letter->perihal }}</u></strong></td>
-            </tr>
-        </table>
+        {{-- Info Surat --}}
+        {{-- Info Surat --}}
+<table class="info-table">
+    <tr>
+        <td style="width: 15%;"><strong>Nomor</strong></td>
+        <td style="width: 35%;">: {{ $letter->nomor_surat }}</td>
+        <td style="width: 15%;"><strong>Sifat</strong></td>
+        <td style="width: 35%;">: {{ $letter->sifat ?? 'Biasa' }}</td>
+    </tr>
+    <tr>
+        <td><strong>Lampiran</strong></td>
+        <td>: {{ $letter->lampiran ?? '-' }}</td>
+        <td><strong>Perihal</strong></td>
+        <td>: <strong><u>{{ $letter->perihal }}</u></strong></td>
+    </tr>
+</table>
 
-        <p class="invitation-text">
-            Dalam rangka Peningkatan Kinerja Sumber Daya Manusia bersama ini kami mengundang Saudara untuk hadir dalam <strong>{{ $letter->perihal }}</strong> pada:
-        </p>
+{{-- Kepada --}}
+<div style="margin: 15px 0;">
+    @php
+        $fieldKepada = $letter->values->firstWhere('field.nama_field', 'kepada') ?? 
+                       $letter->values->firstWhere('field.nama_field', 'kepada_nd');
+        
+        // Jika field kepada adalah user ID, ambil nama dari relasi
+        $kepadaName = 'Penerima Surat';
+        if ($fieldKepada) {
+            if (is_numeric($fieldKepada->nilai)) {
+                // Ini adalah user ID
+                $user = \App\Models\User::find($fieldKepada->nilai);
+                $kepadaName = $user ? $user->nama_lengkap : $fieldKepada->nilai;
+            } else {
+                $kepadaName = $fieldKepada->nilai;
+            }
+        }
+    @endphp
+    <p style="margin: 0;">
+        <strong>Kepada Yth.</strong><br>
+        {{ $kepadaName }}<br>
+        di Tempat
+    </p>
+</div>
 
-        <table class="details-table">
-            @foreach($letter->values as $val)
-            <tr>
-                <td style="width: 100px;">{{ $val->field->nama_field }}</td>
-                <td>:</td>
-                <td>{{ $val->nilai }}</td>
-            </tr>
-            @endforeach
-        </table>
+        {{-- Isi Surat --}}
+        @php
+            $fieldIsi = $letter->values->firstWhere('field.nama_field', 'isi_surat') ?? 
+                        $letter->values->firstWhere('field.nama_field', 'isi_nota');
+            $isiSurat = $fieldIsi ? $fieldIsi->nilai : ($letter->isi_surat ?? 'Demikian surat ini kami sampaikan.');
+        @endphp
+        <div class="invitation-text">{{ $isiSurat }}</div>
 
-        <p>Demikian, agar hadir tepat waktu.</p>
-
-        <div class="sig-container">
-            <p style="margin-bottom: 0;">DIREKTUR PDAM TIRTA MEDAL<br>KABUPATEN SUMEDANG</p>
-            
-            <div class="sig-space">
-                @if(!empty($signatureBase64))
-                    <img src="{{ $signatureBase64 }}" class="signature-img">
+        {{-- Field Dinamis (EXCLUDE tembusan) --}}
+        {{-- Field Dinamis --}}
+@if($letter->values && count($letter->values) > 0)
+    @php
+        $excludeFields = ['isi_surat', 'isi_nota', 'kepada', 'kepada_nd', 'tujuan_instansi', 'penandatangan', 'tembusan', 'dari'];
+        $displayValues = $letter->values->filter(function($val) use ($excludeFields) {
+            return !in_array($val->field->nama_field ?? '', $excludeFields) && !empty($val->nilai);
+        });
+    @endphp
+    @if($displayValues->count() > 0)
+    <table class="details-table">
+        @foreach($displayValues as $val)
+        <tr>
+            <td style="width: 120px; font-weight: bold;">
+                {{ ucfirst(str_replace('_', ' ', $val->field->nama_field)) }}
+            </td>
+            <td style="width: 10px;">:</td>
+            <td>
+                @php
+                    // Cek jika field adalah user ID (dari, kepada, dll)
+                    $displayValue = $val->nilai;
+                    if (is_numeric($val->nilai) && ($val->field->nama_field === 'dari' || strpos(strtolower($val->field->nama_field), 'user') !== false)) {
+                        $user = \App\Models\User::find($val->nilai);
+                        $displayValue = $user ? $user->nama_lengkap : $val->nilai;
+                    }
+                @endphp
+                @if($val->field->tipe_field === 'date' && $val->nilai)
+                    {{ \Carbon\Carbon::parse($val->nilai)->isoFormat('dddd, D MMMM Y') }}
                 @else
-                    <div style="padding-top: 30px; color: #ccc; font-style: italic;">(Tanda Tangan Digital)</div>
+                    {{ $displayValue }}
                 @endif
-            </div>
-            
-            <p style="margin-bottom: 0;"><strong><u>{{ $letter->creator->nama_lengkap ?? 'H. TATANG HIDAYAT, SE' }}</u></strong></p>
-            <p style="margin-top: 0;">NIP. {{ $letter->creator->nip ?? '___________________' }}</p>
-        </div>
+            </td>
+        </tr>
+        @endforeach
+    </table>
+    @endif
+@endif
 
-        <div class="tembusan">
-            <p>Tembusan:</p>
-            <ol>
-                <li>Yth. Bapak Ketua Dewan Pengawas PDAM Tirta Medal (sebagai laporan)</li>
-                <li>Ka. SPI / Fungsional / Ka. Bag / Ka. Bid / Ka. Cab PDAM Tirta Medal</li>
-                <li>Arsip</li>
-            </ol>
-        </div>
+        {{-- Penutup --}}
+        <p class="closing-text">Demikian, agar menjadi perhatian dan dilaksanakan sebagaimana mestinya.</p>
+
+        {{-- Tanda Tangan --}}
+        @php
+            $fieldPenandatangan = $letter->values->firstWhere('field.nama_field', 'penandatangan');
+            $jabatanPenandatangan = $fieldPenandatangan ? $fieldPenandatangan->nilai : 'Kepala Bagian';
+        @endphp
+
+        <table class="signature-table">
+            @if(isset($is_approved) && $is_approved)
+                <tr>
+                    {{-- Dirut --}}
+                    <td>
+                        <p class="signature-label">Menyetujui,<br>DIREKTUR UTAMA<br>PDAM TIRTA MEDAL</p>
+                        <div class="signature-space">
+                            @if($signatureDirut)
+                                <img src="{{ $signatureDirut }}" class="signature-img" onerror="this.style.display='none'">
+                            @else
+                                <div style="padding-top: 30px; color: #666; font-size: 8pt;">[ TTD Digital ]</div>
+                            @endif
+                        </div>
+                        <p class="signature-name">{{ $letter->approver ? $letter->approver->nama_lengkap : 'NAMA DIREKTUR' }}</p>
+                        <p class="signature-nip">NIP. {{ $letter->approver ? $letter->approver->nip : '________________' }}</p>
+                    </td>
+                    {{-- Penandatangan --}}
+                    <td>
+                        <p class="signature-label">Sumedang, {{ $letter->tanggal ? $letter->tanggal->format('d F Y') : date('d F Y') }}<br>{{ $jabatanPenandatangan }},</p>
+                        <div class="signature-space">
+                            @if($signatureKabag)
+                                <img src="{{ $signatureKabag }}" class="signature-img" onerror="this.style.display='none'">
+                            @else
+                                <div style="padding-top: 30px; color: #666; font-size: 8pt;">[ TTD ]</div>
+                            @endif
+                        </div>
+                        <p class="signature-name">{{ $letter->creator ? $letter->creator->nama_lengkap : 'NAMA KABAG' }}</p>
+                        <p class="signature-nip">NIP. {{ $letter->creator ? $letter->creator->nip : '________________' }}</p>
+                    </td>
+                </tr>
+            @else
+                <tr>
+                    <td style="width: 50%;"></td>
+                    <td style="text-align: center; width: 50%;">
+                        <p class="signature-label">Sumedang, {{ $letter->tanggal ? $letter->tanggal->format('d F Y') : date('d F Y') }}<br>{{ $jabatanPenandatangan }},</p>
+                        <div class="signature-space">
+                            @if($signatureKabag)
+                                <img src="{{ $signatureKabag }}" class="signature-img" onerror="this.style.display='none'">
+                            @else
+                                <div style="padding-top: 30px; color: #666; font-size: 8pt;">[ TTD ]</div>
+                            @endif
+                        </div>
+                        <p class="signature-name">{{ $letter->creator ? $letter->creator->nama_lengkap : 'NAMA KABAG' }}</p>
+                        <p class="signature-nip">NIP. {{ $letter->creator ? $letter->creator->nip : '________________' }}</p>
+                        <p style="margin-top: 10px; font-size: 8pt; color: #999; font-style: italic;">
+                            Status: {{ strtoupper(str_replace('_', ' ', $letter->status)) }}
+                        </p>
+                    </td>
+                </tr>
+            @endif
+        </table>
+
+        {{-- ✅ TEMBUSAN - POSISI KIRI BAWAH --}}
+       {{-- ✅ TEMBUSAN - Cek dari 2 Sumber --}}
+@php
+    // Prioritas 1: Cari dari letter_values (field template)
+    $tembusanField = $letter->values->firstWhere('field.nama_field', 'tembusan');
+    $tembusanText = null;
+    
+    if ($tembusanField && trim($tembusanField->nilai)) {
+        $tembusanText = trim($tembusanField->nilai);
+    } elseif ($letter->tembusan && trim($letter->tembusan)) {
+        // Fallback: kolom letters.tembusan
+        $tembusanText = trim($letter->tembusan);
+    }
+@endphp
+
+@if($tembusanText)
+<div class="tembusan-wrapper">
+    <div class="tembusan-label">Tembusan:</div>
+    <ol class="tembusan-list">
+        @foreach(explode("\n", $tembusanText) as $item)
+            @if(trim($item))
+                <li>{{ trim($item) }}</li>
+            @endif
+        @endforeach
+    </ol>
+</div>
+@endif
+
     </div>
 </body>
 </html>

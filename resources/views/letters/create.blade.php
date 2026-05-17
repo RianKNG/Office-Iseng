@@ -89,6 +89,7 @@
                                 value="{{ old('perihal') }}" required placeholder="Ringkasan isi surat">
                             @error('perihal')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
+                        
 
                         <!-- Dynamic Fields Container -->
                         <div id="dynamic-fields" class="mt-4 p-3 bg-light rounded border d-none">
@@ -160,7 +161,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const keUserIdHidden = document.getElementById('ke_user_id_hidden');
     
     let currentFields = [];
-    // ✅ Pastikan controller kirim $usersData (bukan $users)
     let usersData = @json($usersData ?? []);
     const currentUser = @json(auth()->user());
 
@@ -184,7 +184,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    // ✅ SYNC: Update hidden input + tampilkan detail penerima
     window.syncPenerima = function(userId) {
         if (keUserIdHidden) {
             keUserIdHidden.value = userId;
@@ -197,11 +196,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 var selectedUser = usersData.find(function(u) { return u.id == userId; });
                 if (selectedUser) {
                     document.getElementById('penerima-nama').textContent = selectedUser.nama_lengkap;
-                    
-                    // ✅ Format: "Kepala Cabang - Cabang Bandung"
                     var cabangInfo = selectedUser.cabang_nama ? ' - ' + selectedUser.cabang_nama : '';
-                    document.getElementById('penerima-jabatan').textContent = 
-                        selectedUser.jabatan + cabangInfo;
+                    document.getElementById('penerima-jabatan').textContent = selectedUser.jabatan + cabangInfo;
                 }
                 document.getElementById('penerima-indicator').classList.remove('d-none');
             } else {
@@ -277,7 +273,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         html += '<select name="' + name + '" class="form-select form-select-lg" ' + req + ' onchange="syncPenerima(this.value)">';
                         html += '<option value="">-- Pilih Penerima --</option>';
                         
-                        // ✅ Render dropdown user: "Nama - Jabatan (Nama Cabang)"
                         for (var j = 0; j < usersData.length; j++) {
                             var user = usersData[j];
                             if (user.id != currentUser.id) {
@@ -296,13 +291,25 @@ document.addEventListener('DOMContentLoaded', function() {
                             '<div>Otomatis: <strong>' + currentUser.nama_lengkap + '</strong> (' + currentUser.jabatan + ')</div>' +
                             '</div>';
                             
-                    } else if (fieldNameLower.indexOf('isi') !== -1 || fieldNameLower.indexOf('nota') !== -1 || fieldNameLower.indexOf('ringkasan') !== -1) {
+                    } 
+                    // ✅ FIELD TEMBUSAN - Dipindah KE ATAS agar tidak tertangkap kondisi 'isi'
+                    else if (fieldNameLower === 'tembusan') {
+                        html += '<textarea name="' + name + '" class="form-control" rows="4" ' + req + ' oninput="updatePreview()" placeholder="Masukkan tembusan (satu per baris)&#10;Contoh:&#10;1. Yth. Direktur&#10;2. Arsip"></textarea>' +
+                                '<small class="text-muted d-block mt-1"><i class="bi bi-info-circle me-1"></i>Tekan Enter untuk baris baru. Setiap baris akan jadi 1 poin tembusan di PDF.</small>';
+                    
+                    } 
+                    // ✅ FIELD ISI SURAT / NOTA / RINGKASAN
+                    else if (fieldNameLower.indexOf('isi') !== -1 || fieldNameLower.indexOf('nota') !== -1 || fieldNameLower.indexOf('ringkasan') !== -1) {
                         html += '<textarea name="' + name + '" class="form-control" rows="4" ' + req + ' oninput="updatePreview()"></textarea>';
                         
-                    } else if (fieldNameLower.indexOf('tanggal') !== -1) {
+                    } 
+                    // ✅ FIELD TANGGAL
+                    else if (fieldNameLower.indexOf('tanggal') !== -1) {
                         html += '<input type="date" name="' + name + '" class="form-control" ' + req + ' onchange="updatePreview()">';
                         
-                    } else {
+                    } 
+                    // ✅ FIELD TEXT BIASA
+                    else {
                         html += '<input type="text" name="' + name + '" class="form-control" ' + req + ' oninput="updatePreview()">';
                     }
 
@@ -312,7 +319,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 fieldsContent.innerHTML = html + '</div>';
                 btnPreview.disabled = false;
 
-                // Auto-enable btnSubmit jika tidak ada field penerima
                 var hasPenerimaField = document.querySelector('select[onchange*="syncPenerima"]');
                 if (!hasPenerimaField) {
                     btnSubmit.disabled = false;
@@ -350,6 +356,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     val = input.value || '-';
                 }
             }
+            
+            // ✅ Preview khusus untuk tembusan (tampilkan sebagai list)
+            var fieldNameLower = field.nama_field.toLowerCase().replace(/\s+/g, '');
+            if (fieldNameLower === 'tembusan' && val && val !== '-') {
+                var tembusanItems = val.split('\n').filter(function(item) { return item.trim(); });
+                if (tembusanItems.length > 0) {
+                    fieldsHtml += '<tr><td colspan="2"><strong>Tembusan:</strong><ul style="margin:5px 0 0 20px;padding:0;">';
+                    for (var k = 0; k < tembusanItems.length; k++) {
+                        if (tembusanItems[k].trim()) {
+                            fieldsHtml += '<li style="margin:2px 0;">' + tembusanItems[k].trim() + '</li>';
+                        }
+                    }
+                    fieldsHtml += '</ul></td></tr>';
+                    continue;
+                }
+            }
+            
             fieldsHtml += '<tr><td width="30%"><strong>' + field.nama_field + '</strong></td><td>: ' + val + '</td></tr>';
         }
 
@@ -378,16 +401,12 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.show();
     });
 
-    // Submit handler
-    // ✅ SATU event listener submit saja
     document.getElementById('letterForm').addEventListener('submit', function(e) {
         var keUserId = keUserIdHidden ? keUserIdHidden.value : '';
         console.log('📤 [SUBMIT] ke_user_id:', keUserId);
         
-        // ✅ CHECK: Apakah ada field penerima di form?
         var hasPenerimaField = document.querySelector('select[onchange*="syncPenerima"]');
         
-        // ✅ Hanya validasi jika ada field penerima
         if (hasPenerimaField && (!keUserId || keUserId === '')) {
             e.preventDefault();
             alert('⚠️ Pilih penerima surat terlebih dahulu!');
@@ -404,7 +423,6 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ Form valid, submitting...');
     });
         
-    // Reset handler
     document.querySelector('button[type="reset"]').addEventListener('click', function() {
         setTimeout(function() {
             dynamicFields.classList.add('d-none');

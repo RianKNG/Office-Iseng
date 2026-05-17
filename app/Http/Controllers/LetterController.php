@@ -192,25 +192,26 @@ class LetterController extends Controller
 
         $letters = $query->latest()->paginate(10);
 
-        // ✅ Hitung statistik dengan level yang terpisah (PHP 7.4 compatible)
-        $stats = array(
-            'total' => Letter::when(in_array($user->level, $restrictedLevels), function($q) use ($user) {
-                return $q->where('created_by', $user->id);
-            })->count(),
-            'waiting' => Letter::where('status', 'menunggu_verifikasi')
-                ->when(in_array($user->level, $restrictedLevels), function($q) use ($user) {
-                    return $q->where('created_by', $user->id);
-                })->count(),
-            'approved' => Letter::where('status', 'disetujui')
-                ->when(in_array($user->level, $restrictedLevels), function($q) use ($user) {
-                    return $q->where('created_by', $user->id);
-                })->count(),
-            'rejected' => Letter::where('status', 'ditolak')
-                ->when(in_array($user->level, $restrictedLevels), function($q) use ($user) {
-                    return $q->where('created_by', $user->id);
-                })->count(),
-        );
-
+        // ✅ Hitung statistik dengan status yang benar
+// ✅ Hitung statistik dengan status yang benar
+$stats = array(
+    'total' => Letter::when(in_array($user->level, $restrictedLevels), function($q) use ($user) {
+        return $q->where('created_by', $user->id);
+    })->count(),
+    'waiting' => Letter::where('status', 'menunggu_verifikasi')
+        ->when(in_array($user->level, $restrictedLevels), function($q) use ($user) {
+            return $q->where('created_by', $user->id);
+        })->count(),
+    // ✅ FIX: Hitung KEDUA status
+    'approved' => Letter::whereIn('status', ['disetujui', 'selesai'])  // ← UBAH DISINI
+        ->when(in_array($user->level, $restrictedLevels), function($q) use ($user) {
+            return $q->where('created_by', $user->id);
+        })->count(),
+    'rejected' => Letter::where('status', 'ditolak')
+        ->when(in_array($user->level, $restrictedLevels), function($q) use ($user) {
+            return $q->where('created_by', $user->id);
+        })->count(),
+);
         // 🔹 AJAX Response
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json(array(
@@ -472,35 +473,202 @@ public function nota(Request $request)
 }
     
 
-    public function downloadPdf($id)
-    {
-        $letter = Letter::with(array('creator', 'values.field', 'penerima'))->findOrFail($id);
+    // public function downloadPdf($id)
+    // {
+    //     $letter = Letter::with(array('creator', 'values.field', 'penerima'))->findOrFail($id);
         
-        $signatureBase64 = null;
+    //     $signatureBase64 = null;
         
-        if ($letter->creator && $letter->creator->signature) {
-            $fileName = trim($letter->creator->signature); 
-            $path = storage_path('app/public/signatures/' . $fileName);
-            $fullPath = str_replace(array('/', '\\'), DIRECTORY_SEPARATOR, $path);
+    //     if ($letter->creator && $letter->creator->signature) {
+    //         $fileName = trim($letter->creator->signature); 
+    //         $path = storage_path('app/public/signatures/' . $fileName);
+    //         $fullPath = str_replace(array('/', '\\'), DIRECTORY_SEPARATOR, $path);
             
-            if (file_exists($fullPath)) {
-                $type = pathinfo($fullPath, PATHINFO_EXTENSION);
-                $data = file_get_contents($fullPath);
-                $signatureBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
-            }
+    //         if (file_exists($fullPath)) {
+    //             $type = pathinfo($fullPath, PATHINFO_EXTENSION);
+    //             $data = file_get_contents($fullPath);
+    //             $signatureBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+    //         }
+    //     }
+
+    //     $pdf = Pdf::loadView('letters.pdf', compact('letter', 'signatureBase64'))
+    //               ->setOption(array(
+    //                   'isRemoteEnabled' => true,
+    //                   'isHtml5ParserEnabled' => true,
+    //                   'chroot' => storage_path('app/public'),
+    //               ))
+    //               ->setPaper('a4', 'portrait');
+
+    //     return $pdf->stream('Surat-' . $letter->nomor_surat . '.pdf');
+    // }
+//     public function downloadPdf($id)
+// {
+//     $letter = Letter::with(array('creator', 'approver', 'values.field', 'penerima'))->findOrFail($id);
+    
+//     // ✅ Cek status untuk conditional TTD
+//     $is_approved = in_array($letter->status, array('disetujui', 'selesai', 'arsip'));
+//     $generated_at = date('d F Y');
+    
+//     // ✅ Generate Signature Kabag
+//     $signatureKabag = null;
+//     if ($letter->creator && $letter->creator->signature) {
+//         $fileName = trim($letter->creator->signature);
+//         $path = storage_path('app/public/signatures/' . $fileName);
+//         if (file_exists($path)) {
+//             $type = pathinfo($path, PATHINFO_EXTENSION);
+//             $data = file_get_contents($path);
+//             $signatureKabag = 'data:image/' . $type . ';base64,' . base64_encode($data);
+//         }
+//     }
+    
+//     // ✅ Generate Signature Dirut (hanya jika approved)
+//     $signatureDirut = null;
+//     if ($is_approved && $letter->approver && $letter->approver->signature) {
+//         $fileName = trim($letter->approver->signature);
+//         $path = storage_path('app/public/signatures/' . $fileName);
+//         if (file_exists($path)) {
+//             $type = pathinfo($path, PATHINFO_EXTENSION);
+//             $data = file_get_contents($path);
+//             $signatureDirut = 'data:image/' . $type . ';base64,' . base64_encode($data);
+//         }
+//     }
+    
+//     $pdf = Pdf::loadView('letters.pdf', compact(
+//         'letter', 'signatureKabag', 'signatureDirut', 'is_approved', 'generated_at'
+//     ))
+//     ->setOption(array('isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true))
+//     ->setPaper('a4', 'portrait');
+    
+//     return $pdf->stream('Surat-' . $letter->nomor_surat . '.pdf');
+// }
+// public function downloadPdf($id)
+// {
+//     // 1. Load relasi
+//     $letter = Letter::with(array('creator', 'approver', 'values.field', 'penerima'))->findOrFail($id);
+    
+//     // 2. Cek status untuk conditional TTD
+//     $is_approved = in_array($letter->status, array('disetujui', 'selesai', 'arsip'));
+    
+//     // ✅ 3. DEFINISIKAN generated_at SEBELUM DIGUNAKAN (Ini yang kurang!)
+//     $generated_at = date('d F Y');
+    
+//     // 4. Generate Signature Kabag
+//     $signatureKabag = null;
+//     if ($letter->creator && $letter->creator->signature) {
+//         $fileName = trim($letter->creator->signature);
+//         $path = storage_path('app/public/signatures/' . $fileName);
+//         if (file_exists($path)) {
+//             $type = pathinfo($path, PATHINFO_EXTENSION);
+//             $data = file_get_contents($path);
+//             $signatureKabag = 'data:image/' . $type . ';base64,' . base64_encode($data);
+//         }
+//     }
+    
+//     // 5. Generate Signature Dirut (hanya jika approved)
+//     $signatureDirut = null;
+//     if ($is_approved && $letter->approver && $letter->approver->signature) {
+//         $fileName = trim($letter->approver->signature);
+//         $path = storage_path('app/public/signatures/' . $fileName);
+//         if (file_exists($path)) {
+//             $type = pathinfo($path, PATHINFO_EXTENSION);
+//             $data = file_get_contents($path);
+//             $signatureDirut = 'data:image/' . $type . ';base64,' . base64_encode($data);
+//         }
+//     }
+    
+//     // ✅ 6. GUNAKAN compact() - PASTIKAN SEMUA VARIABEL SUDAH ADA DI ATAS
+//     $pdf = Pdf::loadView('letters.pdf', compact(
+//         'letter', 
+//         'signatureKabag', 
+//         'signatureDirut', 
+//         'is_approved', 
+//         'generated_at'  // ✅ Sekarang aman karena sudah didefinisikan di langkah 3
+//     ))
+//     ->setOption(array(
+//         'isRemoteEnabled' => true,
+//         'isHtml5ParserEnabled' => true,
+//         'chroot' => array(storage_path('app/public'), base_path('public')),
+//     ))
+//     ->setPaper('a4', 'portrait');
+    
+//     return $pdf->stream('Surat-' . $letter->nomor_surat . '.pdf');
+// }
+public function downloadPdf($id)
+{
+    $letter = Letter::with(array('creator', 'approver', 'values.field', 'penerima'))->findOrFail($id);
+    
+    // Cek status untuk conditional TTD
+    $is_approved = in_array($letter->status, array('disetujui', 'selesai', 'arsip'));
+    
+    // ✅ PASTIKAN VARIABEL INI ADA
+    $generated_at = date('d F Y');
+    
+    // Generate Signature Kabag
+    $signatureKabag = null;
+    if ($letter->creator && $letter->creator->signature) {
+        $fileName = trim($letter->creator->signature);
+        $path = storage_path('app/public/signatures/' . $fileName);
+        if (file_exists($path)) {
+            $type = pathinfo($path, PATHINFO_EXTENSION);
+            $data = file_get_contents($path);
+            $signatureKabag = 'data:image/' . $type . ';base64,' . base64_encode($data);
         }
-
-        $pdf = Pdf::loadView('letters.pdf', compact('letter', 'signatureBase64'))
-                  ->setOption(array(
-                      'isRemoteEnabled' => true,
-                      'isHtml5ParserEnabled' => true,
-                      'chroot' => storage_path('app/public'),
-                  ))
-                  ->setPaper('a4', 'portrait');
-
-        return $pdf->stream('Surat-' . $letter->nomor_surat . '.pdf');
     }
-
+    
+    // Generate Signature Dirut
+    $signatureDirut = null;
+    if ($is_approved && $letter->approver && $letter->approver->signature) {
+        $fileName = trim($letter->approver->signature);
+        $path = storage_path('app/public/signatures/' . $fileName);
+        if (file_exists($path)) {
+            $type = pathinfo($path, PATHINFO_EXTENSION);
+            $data = file_get_contents($path);
+            $signatureDirut = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        }
+    }
+    
+    // ✅ TAMBAHKAN DD() DI SINI UNTUK DEBUG
+    // dd([
+    //     'letter_id' => $letter->id,
+    //     'nomor_surat' => $letter->nomor_surat,
+    //     'status_surat' => $letter->status,
+    //     'is_approved' => $is_approved,
+    //     'generated_at' => $generated_at,
+    //     'approved_by_db' => $letter->approved_by,
+    //     'approver_data' => $letter->approver ? [
+    //         'id' => $letter->approver->id,
+    //         'nama' => $letter->approver->nama_lengkap,
+    //         'level' => $letter->approver->level,
+    //         'signature_file' => $letter->approver->signature,
+    //     ] : 'NULL - Approver tidak ditemukan!',
+    //     'signatureKabag' => $signatureKabag ? 'ADA (Base64 ' . strlen($signatureKabag) . ' chars)' : 'NULL',
+    //     'signatureDirut' => $signatureDirut ? 'ADA (Base64 ' . strlen($signatureDirut) . ' chars)' : 'NULL',
+    //     'creator_data' => $letter->creator ? [
+    //         'id' => $letter->creator->id,
+    //         'nama' => $letter->creator->nama_lengkap,
+    //         'signature_file' => $letter->creator->signature,
+    //     ] : 'NULL',
+    // ]);
+    
+    // BARIS INI JANGAN DIJALANKAN DULU (comment out sementara)
+    
+    $pdf = Pdf::loadView('letters.pdf', compact(
+        'letter', 
+        'signatureKabag', 
+        'signatureDirut', 
+        'is_approved', 
+        'generated_at'
+    ))
+    ->setOption(array(
+        'isRemoteEnabled' => true,
+        'isHtml5ParserEnabled' => true,
+        'chroot' => array(storage_path('app/public'), base_path('public')),
+    ))
+    ->setPaper('a4', 'portrait');
+    
+    return $pdf->stream('Surat-' . $letter->nomor_surat . '.pdf');
+    
+}
     public function printPdf($id)
     {
         $letter = Letter::with(array('creator', 'values.field', 'penerima'))->findOrFail($id);

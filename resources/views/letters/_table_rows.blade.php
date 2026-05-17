@@ -50,24 +50,27 @@
     </td>
 
     <td>
-        @php
-            $statusBadge = [
-                'draft' => 'bg-secondary',
-                'menunggu_verifikasi' => 'bg-warning text-dark',
-                'disetujui' => 'bg-success',
-                'ditolak' => 'bg-danger',
-                'diproses' => 'bg-primary',
-                'arsip' => 'bg-info text-dark'
-            ];
-            $statusLabel = [
-                'draft' => 'Draft',
-                'menunggu_verifikasi' => 'Menunggu',
-                'disetujui' => 'Selesai',
-                'ditolak' => 'Ditolak',
-                'diproses' => 'Diproses',
-                'arsip' => 'Arsip'
-            ];
-        @endphp
+       @php
+    $statusBadge = [
+        'draft' => 'bg-secondary',
+        'menunggu_verifikasi' => 'bg-warning text-dark',
+        'disetujui' => 'bg-success',
+        'selesai' => 'bg-success',  // ✅ Tambah badge untuk status 'selesai'
+        'ditolak' => 'bg-danger',
+        'diproses' => 'bg-primary',
+        'arsip' => 'bg-info text-dark'
+    ];
+    
+    $statusLabel = [
+        'draft' => 'Draft',
+        'menunggu_verifikasi' => 'Menunggu',
+        'disetujui' => 'Selesai',
+        'selesai' => 'Selesai',     // ✅ TAMBAHKAN INI
+        'ditolak' => 'Ditolak',
+        'diproses' => 'Diproses',
+        'arsip' => 'Arsip'
+    ];
+@endphp
          <span class="badge {{ $statusBadge[$letter->status] ?? 'bg-secondary' }}">
             {{ $statusLabel[$letter->status] ?? $letter->status }}
          </span>
