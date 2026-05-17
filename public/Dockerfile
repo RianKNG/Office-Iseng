@@ -1,24 +1,34 @@
-FROM php:8.2-cli
+FROM php:8.2-apache
+
+# 1. Install ekstensi PHP yang dibutuhkan Laravel
+RUN apt-get update && apt-get install -y \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip \
+    git \
+    curl
+
+RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+RUN a2enmod rewrite
+
+# 2. Set working directory ke root container
 WORKDIR /var/www/html
 
-# Install dependencies
-RUN apt-get update && apt-get install -y \
-    libpng-dev libonig-dev libxml2-dev zip unzip git \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
-
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Copy project files
+# 3. Copy seluruh file project ke container
 COPY . .
 
-# Install Laravel dependencies
-RUN composer install --optimize-autoloader --no-dev
+# 4. Ubah Document Root Apache ke folder /public (PENTING!)
+ENV APACHE_DOCUMENT_ROOT /var/www/html/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-# Set permissions
-RUN chown -R www-data:www-data storage bootstrap/cache
-RUN chmod -R 775 storage bootstrap/cache
+# 5. Beri izin akses (permission) ke folder storage dan bootstrap/cache
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Expose port dan start
-EXPOSE 8000
-CMD php artisan serve --host=0.0.0.0 --port=${PORT:-8000}
+# 6. Install Composer (jika belum di-build lokal)
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+RUN composer install --no-dev --optimize-autoloader
+
+EXPOSE 80

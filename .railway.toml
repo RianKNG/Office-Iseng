@@ -1,5 +1,7 @@
 [build]
-builder = "DOCKERFILE"
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "php artisan serve --host=0.0.0.0 --port=${PORT}"
+startCommand = "apache2-foreground" # atau sesuaikan dengan web server Anda
+restartPolicyType = "ON_FAILURE"
