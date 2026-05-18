@@ -1,36 +1,46 @@
-<?php
-use Illuminate\Support\Facades\Auth;
-use Illuminate from\Support\Facades\Hash;
 
-Route::get('/test-login-manual', function () {
+<?php
+
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+
+// Tentukan rute uji coba dengan nama yang bersih
+Route::get('/debug-auth', function () {
     $username = 'admin';
     $passwordInput = 'password123';
 
-    // 1. Cari user berdasarkan username
-    $user = \App\Models\User::where('username', $username)->first();
+    // 1. Ambil data user dari database berdasarkan username
+    $user = \DB::table('users')->where('username', $username)->first();
 
     if (!$user) {
-        return response()->json(['status' => 'Gagal', 'pesan' => 'Username admin tidak ditemukan di database. Check SQLyog Anda!']);
+        return response()->json([
+            'status' => 'Gagal', 
+            'pesan' => 'Username "admin" tidak ditemukan di database. Pastikan SQLyog Anda sudah sukses melakukan INSERT.'
+        ]);
     }
 
-    // 2. Cek apakah password cocok dengan password_hash
+    // 2. Cek kecocokan password input dengan kolom password_hash
     $passwordCocok = Hash::check($passwordInput, $user->password_hash);
 
-    // 3. Coba login secara manual ke sistem Laravel
     if ($passwordCocok) {
-        Auth::login($user);
         return response()->json([
             'status' => 'Sukses',
-            'pesan' => 'Password cocok! Berhasil login sebagai ' . $user->nama_lengkap,
-            'session_user_id' => Auth::id(),
-            'data_user' => $user
+            'pesan' => 'Password cocok! Enkripsi Bcrypt berhasil divalidasi.',
+            'data_user_di_database' => [
+                'id' => $user->id,
+                'username' => $user->username,
+                'nama_lengkap' => $user->nama_lengkap,
+                'level' => $user->level,
+                'status' => $user->status
+            ]
         ]);
     }
 
     return response()->json([
         'status' => 'Gagal',
-        'pesan' => 'Password salah / tidak cocok dengan hash di database.',
-        'input_password' => $passwordInput,
+        'pesan' => 'Password salah atau tidak cocok dengan hash di database.',
+        'input_password_anda' => $passwordInput,
         'hash_di_database' => $user->password_hash
     ]);
 });
