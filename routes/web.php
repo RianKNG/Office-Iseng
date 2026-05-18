@@ -1,42 +1,29 @@
 
 <?php
-
-<?php
-
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Hash;
+use App\Http\Controllers\Auth\LoginController;
 
-Route::get('/debug-auth', function () {
-    $username = 'admin';
-    $passwordBaru = 'password123';
+// Tentukan rute uji coba dengan nama yang bersih
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\LoginController; // Pastikan namespace controller Anda benar
 
-    // 1. Cari data user berdasarkan username
-    $user = \DB::table('users')->where('username', $username)->first();
-
-    if (!$user) {
-        return response()->json([
-            'status' => 'Gagal',
-            'pesan' => 'Username admin tidak ditemukan. Silakan jalankan query INSERT di SQLyog terlebih dahulu!'
-        ]);
-    }
-
-    // 2. GENERATE HASH BARU & PAKSA UPDATE DATABASE lewat aplikasi
-    $hashValid = Hash::make($passwordBaru);
-    
-    \DB::table('users')
-        ->where('username', $username)
-        ->update(['password_hash' => $hashValid]);
-
-    return response()->json([
-        'status' => 'Sukses!',
-        'pesan' => 'Password untuk akun "' . $username . '" telah otomatis direset dan diperbarui oleh sistem!',
-        'password_sekarang' => $passwordBaru,
-        'hash_baru_yang_disimpan' => $hashValid
-    ]);
+// 1. Arahkan rute utama ke halaman login
+Route::get('/', function () {
+    return redirect('/login');
 });
 
+// 2. Rute Tampilan Login (Menampilkan Form)
+Route::get('/login', function () {
+    return view('auth.login'); // Sesuaikan dengan lokasi file blade login Anda (misal: 'login' atau 'auth.login')
+})->name('login');
 
+// 3. Rute Aksi Login (Proses POST saat tombol Masuk diklik)
+Route::post('/login', [LoginController::class, 'login']);
 
+// 4. Rute Dashboard (Halaman setelah sukses login)
+Route::get('/dashboard', function () {
+    return "Selamat! Anda berhasil masuk ke Dashboard E-OFFICE PDAM.";
+})->middleware('auth'); // Hapus middleware('auth') sementara jika ingin tes tanpa halangan session dulu
 
 
 
