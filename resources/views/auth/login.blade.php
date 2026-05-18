@@ -403,7 +403,7 @@
                     <p>Silakan masuk untuk melanjutkan</p>
                 </div>
                 
-                <form method="POST" action="{{ secure_url('/login') }}">
+                <form method="POST" action="{{ url('/login') }}">
                     @csrf
 
                     <div class="form-group">

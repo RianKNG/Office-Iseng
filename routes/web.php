@@ -1,6 +1,4 @@
-
 <?php
-
 
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\CabangController;
