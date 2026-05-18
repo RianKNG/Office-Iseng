@@ -24,8 +24,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Memaksa Laravel agar menggunakan protokol HTTPS untuk asset dan routing di server Railway
-        if (config('app.env') === 'production' || isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+        // Memaksa semua asset() dan route() menggunakan HTTPS jika di production
+        if ($this->app->environment('production') || env('APP_ENV') === 'production') {
             URL::forceScheme('https');
         }
     }
