@@ -27,8 +27,16 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.
 # 5. Beri izin akses (permission) ke folder storage dan bootstrap/cache
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# 6. Install Composer (jika belum di-build lokal)
+# 6. Install Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-RUN composer install --no-dev --optimize-autoloader
+RUN composer install --no-dev --optimize-autoloader --no-interaction
+
+# 7. Optimasi Laravel Cache
+RUN php artisan config:cache && \
+    php artisan route:cache && \
+    php artisan view:cache
 
 EXPOSE 80
+
+# 8. Jalankan perintah otomatis saat container menyala (Migrasi & Start Apache)
+CMD php artisan migrate --force && apache2-foreground
