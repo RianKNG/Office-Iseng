@@ -1,29 +1,44 @@
 
 <?php
-use Illuminate\Support\Facades\Route;
+
 use App\Http\Controllers\Auth\LoginController;
-
-// Tentukan rute uji coba dengan nama yang bersih
+use Artisan;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\LoginController; // Pastikan namespace controller Anda benar
 
-// 1. Arahkan rute utama ke halaman login
+// RUTE DARURAT: Menghapus cache saat Anda mengakses domain utama
 Route::get('/', function () {
-    return redirect('/login');
+    // Memaksa Laravel menghapus cache rute dan konfigurasi di production
+    try {
+        Artisan::call('route:clear');
+        \Artisan::call('config:clear');
+        \Artisan::call('cache:clear');
+        \Artisan::call('view:clear');
+        $pesan = "Cache Berhasil Dibersihkan! ";
+    } catch (\Exception $e) {
+        $pesan = "Gagal bersihkan cache: " . $e->getMessage();
+    }
+
+    // Setelah cache bersih, otomatis lempar user ke halaman login
+    return redirect('/login')->with('status', $pesan);
 });
 
-// 2. Rute Tampilan Login (Menampilkan Form)
+// RUTE TAMPILAN LOGIN
 Route::get('/login', function () {
-    return view('auth.login'); // Sesuaikan dengan lokasi file blade login Anda (misal: 'login' atau 'auth.login')
+    // Pastikan nama file blade Anda adalah login.blade.php di dalam folder resources/views
+    // Jika file login Anda ada di dalam folder 'auth', ubah menjadi 'auth.login'
+    return view('login'); 
 })->name('login');
 
-// 3. Rute Aksi Login (Proses POST saat tombol Masuk diklik)
+// RUTE PROSES LOGIN (POST)
 Route::post('/login', [LoginController::class, 'login']);
 
-// 4. Rute Dashboard (Halaman setelah sukses login)
+// RUTE DASHBOARD SUKSES
 Route::get('/dashboard', function () {
-    return "Selamat! Anda berhasil masuk ke Dashboard E-OFFICE PDAM.";
-})->middleware('auth'); // Hapus middleware('auth') sementara jika ingin tes tanpa halangan session dulu
+    return "<h2>Selamat! Anda Berhasil Masuk ke Dashboard E-OFFICE PDAM.</h2>";
+});
+
+
+
 
 
 
