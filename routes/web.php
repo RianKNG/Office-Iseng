@@ -1,44 +1,27 @@
 
 <?php
 
-use App\Http\Controllers\Auth\LoginController;
-use Artisan;
+
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\LoginController;
 
-// RUTE DARURAT: Menghapus cache saat Anda mengakses domain utama
+// Tampilan awal langsung lempar ke halaman login
 Route::get('/', function () {
-    // Memaksa Laravel menghapus cache rute dan konfigurasi di production
-    try {
-        Artisan::call('route:clear');
-        \Artisan::call('config:clear');
-        \Artisan::call('cache:clear');
-        \Artisan::call('view:clear');
-        $pesan = "Cache Berhasil Dibersihkan! ";
-    } catch (\Exception $e) {
-        $pesan = "Gagal bersihkan cache: " . $e->getMessage();
-    }
-
-    // Setelah cache bersih, otomatis lempar user ke halaman login
-    return redirect('/login')->with('status', $pesan);
+    return redirect()->route('login');
 });
 
-// RUTE TAMPILAN LOGIN
+// Jalur halaman login (Form)
 Route::get('/login', function () {
-    // Pastikan nama file blade Anda adalah login.blade.php di dalam folder resources/views
-    // Jika file login Anda ada di dalam folder 'auth', ubah menjadi 'auth.login'
     return view('login'); 
 })->name('login');
 
-// RUTE PROSES LOGIN (POST)
+// Jalur aksi submit login (POST)
 Route::post('/login', [LoginController::class, 'login']);
 
-// RUTE DASHBOARD SUKSES
+// Jalur Dashboard setelah sukses tembus auth
 Route::get('/dashboard', function () {
     return "<h2>Selamat! Anda Berhasil Masuk ke Dashboard E-OFFICE PDAM.</h2>";
-});
-
-
-
+})->name('dashboard');
 
 
 
