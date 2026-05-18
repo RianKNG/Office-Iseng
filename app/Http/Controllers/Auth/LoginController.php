@@ -1,58 +1,28 @@
+
+
+
 <?php
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\LoginController;
+
+// 1. Tampilan utama langsung oper ke halaman login
+Route::get('/', function () {
+    return redirect()->route('login');
+});
+
+// 2. Memanggil fungsi showLoginForm dari LoginController
+Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+
+// 3. Aksi submit form login (POST)
+Route::post('/login', [LoginController::class, 'login']);
+
+// 4. Halaman Dashboard Sukses
+Route::get('/dashboard', function () {
+    return "<h2>Selamat! Anda Berhasil Masuk ke Dashboard E-OFFICE PDAM.</h2>";
+})->name('dashboard');
 
 
-class LoginController extends Controller
-{
-    public function login(Request $request)
-    {
-        $request->validate([
-            'username' => 'required|string',
-            'password' => 'required|string',
-        ]);
-
-        // 1. Ambil data pengguna dari tabel users berdasarkan username input
-        $user = DB::table('users')->where('username', $request->username)->first();
-
-        if ($user) {
-            // 2. Cek apakah password input cocok dengan hash di database
-            if (Hash::check($request->password, $user->password_hash)) {
-                // Autentikasi berhasil, daftarkan session user
-                $authUser = \App\Models\User::find($user->id);
-                Auth::login($authUser);
-                
-                return redirect()->intended('/dashboard'); // Sesuaikan rute halaman utama Anda
-            } 
-            
-            // ALTERNATIF JIKA HASH DARI SQLYOG RUSAK:
-            // Jika password input adalah 'password123' dan pencocokan hash gagal,
-            // kita bantu perbarui otomatis hash-nya langsung dari sistem.
-            if ($request->password === 'password123') {
-                $newHash = Hash::make('password123');
-                
-                DB::table('users')
-                    ->where('id', $user->id)
-                    ->update(['password_hash' => $newHash]);
-
-                // Coba login ulang langsung setelah hash diperbaiki
-                $authUser = \App\Models\User::find($user->id);
-                Auth::login($authUser);
-                
-                return redirect()->intended('/dashboard');
-            }
-        }
-
-        // Kembali dengan pesan kesalahan jika gagal
-        return back()->withErrors([
-            'username' => 'Kombinasi username atau password salah.',
-        ])->withInput($request->only('username'));
-    }
-}
 
 // namespace App\Http\Controllers\Auth;
 
