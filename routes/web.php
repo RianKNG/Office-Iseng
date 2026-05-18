@@ -3,29 +3,14 @@
 
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\LoginController;
 
-// Tampilan awal langsung lempar ke halaman login
 Route::get('/', function () {
-    return redirect()->route('login');
+    return "Mencoba rute dasar tanpa controller - Server Aktif!";
 });
 
-// Jalur halaman login (Form)
 Route::get('/login', function () {
-    return view('login'); 
-})->name('login');
-
-// Jalur aksi submit login (POST)
-Route::post('/login', [LoginController::class, 'login']);
-
-// Jalur Dashboard setelah sukses tembus auth
-Route::get('/dashboard', function () {
-    return "<h2>Selamat! Anda Berhasil Masuk ke Dashboard E-OFFICE PDAM.</h2>";
-})->name('dashboard');
-
-
-
-
+    return "Halaman login sementara";
+});
 
 // use App\Http\Controllers\AdminController;
 // use App\Http\Controllers\CabangController;
