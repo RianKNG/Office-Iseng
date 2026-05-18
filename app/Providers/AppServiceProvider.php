@@ -2,7 +2,6 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -22,11 +21,8 @@ class AppServiceProvider extends ServiceProvider
      *
      * @return void
      */
-    public function boot(): void
+    public function boot()
     {
-        // Memaksa semua asset() dan route() menggunakan HTTPS jika di production
-        if ($this->app->environment('production') || env('APP_ENV') === 'production') {
-            URL::forceScheme('https');
-        }
+        //
     }
 }
