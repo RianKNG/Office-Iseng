@@ -372,7 +372,6 @@
 <body>
     <div class="login-container">
         <div class="login-box">
-            <!-- Left Side -->
             <div class="left-side d-none d-lg-flex">
                 <div>
                     <div class="brand-logo">
@@ -398,28 +397,28 @@
                 </div>
             </div>
             
-            <!-- Right Side -->
             <div class="right-side">
                 <div class="login-header">
                     <h2>Selamat Datang</h2>
                     <p>Silakan masuk untuk melanjutkan</p>
                 </div>
                 
-                <form method="POST" action="{{ route('login') }}">
+                <form method="POST" action="{{ secure_url('/login') }}">
                     @csrf
 
                     <div class="form-group">
-                        <label class="form-label">Password</label>
+                        <label class="form-label">Username</label>
                         <div class="input-group-custom">
-                            <i class="fas fa-lock"></i>
+                            <i class="fas fa-user"></i>
                             <input type="text" 
                                    id="username" 
                                    class="form-control @error('username') is-invalid @enderror" 
                                    name="username" 
                                    value="{{ old('username') }}"
+                                   placeholder="Masukkan username Anda"
                                    required autofocus>
                         </div>
-                         @error('email')
+                        @error('username')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
                     </div>
