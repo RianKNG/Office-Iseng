@@ -1,50 +1,39 @@
 
 <?php
 
+<?php
+
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
-// Tentukan rute uji coba dengan nama yang bersih
 Route::get('/debug-auth', function () {
     $username = 'admin';
-    $passwordInput = 'password123';
+    $passwordBaru = 'password123';
 
-    // 1. Ambil data user dari database berdasarkan username
+    // 1. Cari data user berdasarkan username
     $user = \DB::table('users')->where('username', $username)->first();
 
     if (!$user) {
         return response()->json([
-            'status' => 'Gagal', 
-            'pesan' => 'Username "admin" tidak ditemukan di database. Pastikan SQLyog Anda sudah sukses melakukan INSERT.'
+            'status' => 'Gagal',
+            'pesan' => 'Username admin tidak ditemukan. Silakan jalankan query INSERT di SQLyog terlebih dahulu!'
         ]);
     }
 
-    // 2. Cek kecocokan password input dengan kolom password_hash
-    $passwordCocok = Hash::check($passwordInput, $user->password_hash);
-
-    if ($passwordCocok) {
-        return response()->json([
-            'status' => 'Sukses',
-            'pesan' => 'Password cocok! Enkripsi Bcrypt berhasil divalidasi.',
-            'data_user_di_database' => [
-                'id' => $user->id,
-                'username' => $user->username,
-                'nama_lengkap' => $user->nama_lengkap,
-                'level' => $user->level,
-                'status' => $user->status
-            ]
-        ]);
-    }
+    // 2. GENERATE HASH BARU & PAKSA UPDATE DATABASE lewat aplikasi
+    $hashValid = Hash::make($passwordBaru);
+    
+    \DB::table('users')
+        ->where('username', $username)
+        ->update(['password_hash' => $hashValid]);
 
     return response()->json([
-        'status' => 'Gagal',
-        'pesan' => 'Password salah atau tidak cocok dengan hash di database.',
-        'input_password_anda' => $passwordInput,
-        'hash_di_database' => $user->password_hash
+        'status' => 'Sukses!',
+        'pesan' => 'Password untuk akun "' . $username . '" telah otomatis direset dan diperbarui oleh sistem!',
+        'password_sekarang' => $passwordBaru,
+        'hash_baru_yang_disimpan' => $hashValid
     ]);
 });
-
 
 
 
