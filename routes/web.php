@@ -7,6 +7,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\JabatanController;
 use App\Http\Controllers\LetterController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -169,6 +170,14 @@ Route::prefix('api/notifications')->group(function () {
     Route::post('/read-all', [App\Http\Controllers\NotificationController::class, 'markAllRead'])->name('api.notif.read');
 });
 
+
+
+// Redirect /users ke /users/create
+// Route::get('/users', function () {
+//     return redirect()->route('users.create');
+// });
+
+Route::resource('users', UserController::class)->except('index');
 
 }); // ✅ Tutup group auth
 // ✅ TIDAK ADA KURUNG LAGI DI SINI - FILE BERAKHIR DI SINI
