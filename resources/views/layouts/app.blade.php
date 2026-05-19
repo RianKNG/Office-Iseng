@@ -168,16 +168,7 @@
             <!-- Heading -->
             <div class="sidebar-heading">Management User</div>
 
- <hr class="sidebar-divider my-0">
-            <!-- Nav Item - Pages Collapse Menu -->
-            <li class="nav-item">
-                   <a class="nav-link" href="{{ route('users.index') }}">
-                       <i class="fas fa-fw fa-tachometer-alt"></i>
-                       <span>Users</span></a>
-                       <a class="nav-link" 
-                       </i> 
-                  </a>
-               </li>   
+  
             <!-- Nav Item - Management User -->
             <li class="nav-item active">
                 <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePages" 
@@ -209,6 +200,16 @@
                     </div>
                 </div>
             </li>
+            <hr class="sidebar-divider my-0">
+            <!-- Nav Item - Pages Collapse Menu -->
+            <li class="nav-item">
+                   <a class="nav-link" href="{{ route('users.index') }}">
+                       <i class="fas fa-fw fa-tachometer-alt"></i>
+                       <span>Users</span></a>
+                       <a class="nav-link" 
+                       </i> 
+                  </a>
+               </li>  
 
             <!-- Divider -->
             <hr class="sidebar-divider d-none d-md-block">

@@ -67,18 +67,41 @@
         </select>
     </div>
 
-    <div class="col-md-6">
+    {{-- <div class="col-md-6">
         <label class="form-label">Foto Profile</label>
         <input type="file" name="foto_profile" class="form-control" accept="image/*">
         @if(isset($user) && $user->foto_profile)
             <img src="{{ asset('storage/'.$user->foto_profile) }}" height="60" class="mt-2 rounded border">
         @endif
-    </div>
-    <div class="col-md-6">
+    </div> --}}
+    <!-- Untuk Foto Profile -->
+<div class="col-md-6">
+    <label class="form-label">Foto Profile</label>
+    <input type="file" name="foto_profile" class="form-control" accept="image/*">
+    @if(isset($user) && $user->foto_profile)
+        <img src="{{ asset('storage/'.$user->foto_profile) }}" 
+             height="80" 
+             class="mt-2 rounded border" 
+             id="previewFoto"> {{-- ✅ Tambahkan ID ini --}}
+    @endif
+</div>
+
+<!-- Untuk Signature -->
+<div class="col-md-6">
+    <label class="form-label">Tanda Tangan Digital</label>
+    <input type="file" name="signature" class="form-control" accept="image/*">
+    @if(isset($user) && $user->signature)
+        <img src="{{ asset('storage/'.$user->signature) }}" 
+             height="80" 
+             class="mt-2 rounded border"
+             id="previewSignature"> {{-- ✅ Tambahkan ID ini --}}
+    @endif
+</div>
+    {{-- <div class="col-md-6">
         <label class="form-label">Tanda Tangan Digital</label>
         <input type="file" name="signature" class="form-control" accept="image/*">
         @if(isset($user) && $user->signature)
             <img src="{{ asset('storage/'.$user->signature) }}" height="60" class="mt-2 rounded border">
         @endif
-    </div>
+    </div> --}}
 </div>

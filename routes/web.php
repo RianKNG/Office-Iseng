@@ -177,7 +177,7 @@ Route::prefix('api/notifications')->group(function () {
 //     return redirect()->route('users.create');
 // });
 
-Route::resource('users', UserController::class)->except('index');
+Route::resource('users', UserController::class);
 
 }); // ✅ Tutup group auth
 // ✅ TIDAK ADA KURUNG LAGI DI SINI - FILE BERAKHIR DI SINI
